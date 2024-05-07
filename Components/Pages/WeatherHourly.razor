@@ -1,0 +1,50 @@
+﻿@page "/weather/hourly"
+@inject HttpClient Http
+@using Instrukcja.Model
+
+<h1>Hourly Weather Forecast</h1>
+
+@if (weatherData != null && weatherData.Hourly.Any())
+{
+    foreach (var hour in weatherData.Hourly)
+    {
+        <p>@FormatDate(hour.Dt): Temperature: @FormatTemperature(hour.Temp)°C, Feels Like: @FormatTemperature(hour.Feels_like)°C</p>
+    }
+}
+else
+{
+    <p>Loading hourly weather data...</p>
+}
+
+@code {
+    public WeatherResponse weatherData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHourlyWeather();
+    }
+
+    private async Task LoadHourlyWeather()
+    {
+        try
+        {
+            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,daily,current,alerts";
+            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
+    private string FormatTemperature(double kelvin)
+    {
+        return (kelvin - 273.15).ToString("N2");
+    }
+
+    private string FormatDate(long unixDateTime)
+    {
+        DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(unixDateTime);
+        return dateTimeOffset.LocalDateTime.ToString("g"); 
+    }
+}

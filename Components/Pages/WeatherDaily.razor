@@ -1,0 +1,56 @@
+﻿@page "/weather/daily"
+@inject HttpClient Http
+@using Instrukcja.Model
+
+<h1>Hourly Weather Forecast</h1>
+
+@if (weatherData != null && weatherData.Daily.Any())
+{
+    foreach (var day in weatherData.Daily)
+    {
+        <p>@FormatDate(day.Dt): Temperature: Day: @FormatTemperature(day.Temp.Day)°C, 
+            Minimum : @FormatTemperature(day.Temp.Min)°C, 
+            Maximum :@FormatTemperature(day.Temp.Max)°C,
+            Night: @FormatTemperature(day.Temp.Night)°C, 
+            Evening: @FormatTemperature(day.Temp.Eve)°C, 
+            Morning: @FormatTemperature(day.Temp.Morn)°C
+        </p>
+    }
+}
+else
+{
+    <p>Loading daily weather data...</p>
+}
+
+@code {
+    public WeatherResponse weatherData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDailyWeather();
+    }
+
+    private async Task LoadDailyWeather()
+    {
+        try
+        {
+            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,hourly,current,alerts";
+            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
+    private string FormatTemperature(double kelvin)
+    {
+        return (kelvin - 273.15).ToString("N2");
+    }
+
+    private string FormatDate(long unixDateTime)
+    {
+        DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(unixDateTime);
+        return dateTimeOffset.LocalDateTime.ToString("g"); 
+    }
+}

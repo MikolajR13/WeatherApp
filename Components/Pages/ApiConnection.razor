@@ -1,0 +1,29 @@
+﻿@page "/ApiConnection"
+@inject HttpClient Http
+@rendermode InteractiveServer
+@using Instrukcja.Model
+<h1>ApiConnection</h1>
+
+@if (apiData != null)
+{
+    <p>Dane: @apiData.SomeProperty</p>
+}
+else
+{
+    <p><em>Ładowanie danych...</em></p>
+}
+
+@code {
+    private ApiDataType apiData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98";
+        apiData = await Http.GetFromJsonAsync<ApiDataType>(url);
+    }
+
+    public class ApiDataType
+    {
+        public string SomeProperty { get; set; }
+    }
+}

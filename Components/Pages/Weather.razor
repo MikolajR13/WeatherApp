@@ -1,0 +1,55 @@
+﻿@page "/weather"
+@inject HttpClient Http
+@inject NavigationManager UriHelper
+@inject NavigationManager NavigationManager
+@using Instrukcja.Model
+@using Instrukcja.Components
+<h1>Weather Overview</h1>
+
+@if (weatherData != null)
+{
+    <p>Location: @weatherData.Timezone (@weatherData.Lat, @weatherData.Lon)</p>
+    <p>Current Temperature: @FormatTemperature(weatherData.Current.Temp)</p>
+    <a href="/weather/current">Go to current weather</a>
+    <a href="/weather/minutely">Go to minutely weather</a>
+    <a href="/weather/hourly">Go to hourly weather</a>
+    <a href="/weather/daily">Go to daily weather</a>
+
+
+}
+else
+{
+    <p>Loading weather data...</p>
+}
+
+@code {
+    private WeatherResponse weatherData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await FetchWeatherDataAsync();
+    }
+
+    private async Task FetchWeatherDataAsync()
+    {
+        try
+        {
+            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98";
+            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Failed to load weather data: {ex.Message}");
+        }
+    }
+
+    private string FormatTemperature(double kelvin)
+    {
+        return (kelvin - 273.15).ToString("N2");
+    }
+    public string uri1 = "/weather/current";
+    public string uri2 = "/weather/minutely";
+    public string uri3 = "/weather/hourly";
+    public string uri4 = "/weather/daily";
+
+}

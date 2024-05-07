@@ -1,0 +1,43 @@
+﻿@page "/weather/current"
+@inject HttpClient Http
+@using Instrukcja.Model
+<h1>Current Weather Details</h1>
+
+@if (weatherData != null)
+{
+    <p>Temperature: @FormatTemperature(weatherData.Current.Temp)°C</p>
+    <p>Feels Like: @FormatTemperature(weatherData.Current.Feels_like)°C</p>
+    <p>Humidity: @weatherData.Current.Humidity%</p>
+    
+}
+else
+{
+    <p>Loading current weather data...</p>
+}
+
+@code {
+    public WeatherResponse weatherData;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCurrentWeather();
+    }
+
+    private async Task LoadCurrentWeather()
+    {
+        try
+        {
+            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,daily,hourly,alerts";
+            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
+    private string FormatTemperature(double temperature)
+    {
+        return temperature.ToString("N2");
+    }
+}
