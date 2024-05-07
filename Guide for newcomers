@@ -1,0 +1,18 @@
+Dobra to tak mamy projekt podzielony na 2 części: Components oraz Model
+Components: Znajdziemy w nim pliki:
+- odpowiadające za wygląd aplikacji - MailLayout.razor
+- odpowiadające za połączenie przycisków, okienek itp. z miejscem gdzie mają nas przenieść
+
+Pages: Część Components gdzie mamy zdefiniowaną zawartość wszystkich stron, które wyświetlamy - można też to połączyć z backendem jak np w pliku Weather.razor, gdzie sprawdzamy czy mamy dane wczytane z API czy nie
+Wszystkie pliki z Pages się będą wyświetlały w aplikacji
+
+Imports.razor - nie obchodzi nas na razie
+App.razor - nie wiem, jakiś HTML
+Routes.razor - definiowanie zachowanie aplikacji przy powodzeniu lub niepowodzeniu przejścia na jakąś stronę/podstronę
+
+MODEL: Backend w sumie. Na razie zdefiniowałem tam klasy dzieki którym ładnie parsuje dane z API - potem wykorzystuje to w plikach z katalogu Pages
+
+Zgodnie ze specyfikacją API https://openweathermap.org/api/one-call-3 : rozdzielam zapytania na double, stringi itp itd. WeatherResponse.cs jest głównym handlerem odpowiedzi z API. Można było deklarować listy ( List<WeatherDaily> Daily) <- na przykład
+dla poszczególnych rodzajów danych ale uznałem, że jednak korzystanie z takiego handlera jest bardziej przejrzyste ( dla mnie ). 
+
+Jest jescze Program.cs -> główny builder aplikacji , nie wiem co tam się dokładnie dzieje ale no cóż, kiedyś się dowiemy jak będzie trzeba :)
