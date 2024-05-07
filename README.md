@@ -1,3 +1,4 @@
+#README :-) 
 # Ogólnie to obchodzi nas na razie wszystko co jest w folderze "Pages" oraz w folderze "Model". 
 #Pages - definiowane strony i wszystko co się na nich znajduje
 #Model - zdefiniowane tak na prawdę deserializacja danych z api - porozbijanie na klasy żeby łatwiej było tego używać
