@@ -16,3 +16,5 @@ Zgodnie ze specyfikacją API https://openweathermap.org/api/one-call-3 : rozdzie
 dla poszczególnych rodzajów danych ale uznałem, że jednak korzystanie z takiego handlera jest bardziej przejrzyste ( dla mnie ). 
 
 Jest jescze Program.cs -> główny builder aplikacji , nie wiem co tam się dokładnie dzieje ale no cóż, kiedyś się dowiemy jak będzie trzeba :)
+
+Pakiety pobieramy za pomocą NuGet -> Narzędzia (Tools) -> Menedżer pakietów NuGet -> Konsola menedżera pakietów -> Install-Package ...
