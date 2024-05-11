@@ -2,6 +2,9 @@
 {
     public class WeatherDaily
     {
+        public int Id { get; set; }
+        public int TempId { get; set; }
+        public int FeelsLikeId { get; set; }
         public long Dt { get; set; }
         public long Sunrise { get; set; }
         public long Sunset { get; set; }

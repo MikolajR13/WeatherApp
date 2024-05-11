@@ -2,6 +2,8 @@
 {
     public class Temperature
     {
+        public int TemperatureId { get; set; }
+        public int TemperatureFellsId { get; set; }
         public double Day { get; set; }
         public double Min { get; set; }
         public double Max { get; set; }

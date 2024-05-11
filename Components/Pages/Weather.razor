@@ -3,7 +3,9 @@
 @inject NavigationManager UriHelper
 @inject NavigationManager NavigationManager
 @using Instrukcja.Model
-
+@using Instrukcja.Services
+@using Microsoft.Data.Sqlite;
+@inject WeatherService WeatherService
 <h1>Weather Overview</h1>
 
 @if (weatherData != null)
@@ -14,8 +16,6 @@
     <a href="/weather/minutely">Go to minutely weather</a>
     <a href="/weather/hourly">Go to hourly weather</a>
     <a href="/weather/daily">Go to daily weather</a>
-
-
 }
 else
 {
@@ -30,17 +30,26 @@ else
         await FetchWeatherDataAsync();
     }
 
-    private async Task FetchWeatherDataAsync()
+    private async Task<WeatherResponse> FetchWeatherDataAsync()
     {
         try
         {
             var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+            if (weatherData != null && weatherData.Daily != null)
+            {
+                foreach( var day in weatherData.Daily)
+                {
+                    await WeatherService.AddWeatherAsync(day);
+                }
+            }
+
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Failed to load weather data: {ex.Message}");
         }
+        return weatherData;
     }
 
     private string FormatTemperature(double kelvin)

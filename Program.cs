@@ -1,5 +1,8 @@
 using Instrukcja.Components;
+using Instrukcja.Data;
 using Microsoft.AspNetCore.Authentication.Certificate;
+using Microsoft.EntityFrameworkCore;
+using Instrukcja.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +14,14 @@ builder.Services.AddAuthentication(CertificateAuthenticationDefaults.Authenticat
 //serwis do API
 builder.Services.AddScoped<HttpClient>();
 
+builder.Services.AddDbContext<WeatherDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("WeatherDb")));
+
+builder.Services.AddScoped<WeatherService>();
+
 var app = builder.Build();
+
+
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
