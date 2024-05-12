@@ -3,6 +3,7 @@ using System;
 using Instrukcja.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Instrukcja.Migrations
 {
     [DbContext(typeof(WeatherDbContext))]
-    partial class WeatherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240512144844_AddedHourlyAndNewService1")]
+    partial class AddedHourlyAndNewService1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.4");
@@ -70,15 +73,20 @@ namespace Instrukcja.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("WeatherDailyId")
+                    b.Property<int>("WeatherDailyId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int?>("WeatherHourlyId")
+                    b.Property<int?>("WeatherDailyId1")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("WeatherHourlyId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id1");
 
                     b.HasIndex("WeatherDailyId");
+
+                    b.HasIndex("WeatherDailyId1");
 
                     b.HasIndex("WeatherHourlyId");
 
@@ -93,9 +101,6 @@ namespace Instrukcja.Migrations
 
                     b.Property<int>("Clouds")
                         .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("DateDaily")
-                        .HasColumnType("TEXT");
 
                     b.Property<double>("Dew_point")
                         .HasColumnType("REAL");
@@ -165,9 +170,6 @@ namespace Instrukcja.Migrations
                     b.Property<int>("Clouds")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("DateHourly")
-                        .HasColumnType("TEXT");
-
                     b.Property<double>("Dew_point")
                         .HasColumnType("REAL");
 
@@ -189,16 +191,10 @@ namespace Instrukcja.Migrations
                     b.Property<double>("Temp")
                         .HasColumnType("REAL");
 
-                    b.Property<TimeSpan>("Time")
-                        .HasColumnType("TEXT");
-
                     b.Property<double>("Uvi")
                         .HasColumnType("REAL");
 
                     b.Property<int>("Visibility")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("WeatherDailyId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Wind_deg")
@@ -212,16 +208,18 @@ namespace Instrukcja.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("WeatherDailyId");
-
                     b.ToTable("WeatherHourlyData");
                 });
 
             modelBuilder.Entity("Instrukcja.Model.Weather", b =>
                 {
                     b.HasOne("Instrukcja.Model.WeatherDaily", null)
-                        .WithMany("Weather")
+                        .WithMany()
                         .HasForeignKey("WeatherDailyId");
+
+                    b.HasOne("Instrukcja.Model.WeatherDaily", null)
+                        .WithMany("Weather")
+                        .HasForeignKey("WeatherDailyId1");
 
                     b.HasOne("Instrukcja.Model.WeatherHourly", null)
                         .WithMany("Weather")
@@ -247,22 +245,9 @@ namespace Instrukcja.Migrations
                     b.Navigation("Temp");
                 });
 
-            modelBuilder.Entity("Instrukcja.Model.WeatherHourly", b =>
-                {
-                    b.HasOne("Instrukcja.Model.WeatherDaily", "WeatherDaily")
-                        .WithMany("WeatherHourlies")
-                        .HasForeignKey("WeatherDailyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("WeatherDaily");
-                });
-
             modelBuilder.Entity("Instrukcja.Model.WeatherDaily", b =>
                 {
                     b.Navigation("Weather");
-
-                    b.Navigation("WeatherHourlies");
                 });
 
             modelBuilder.Entity("Instrukcja.Model.WeatherHourly", b =>

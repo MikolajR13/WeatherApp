@@ -4,6 +4,7 @@
     {
         public int Id { get; set; }
         public int TempId { get; set; }
+        public DateTime DateDaily { get; set; }
         public int FeelsLikeId { get; set; }
         public long Dt { get; set; }
         public long Sunrise { get; set; }
@@ -23,5 +24,7 @@
         public double Uvi { get; set; }
         public double Pop { get; set; }
         public List<Weather> Weather { get; set; }
+
+        public List<WeatherHourly> WeatherHourlies { get; set; }
     }
 }

@@ -5,25 +5,23 @@ namespace Instrukcja.Data
 {
     public class WeatherDbContext : DbContext
     {
-        // Konstruktor przyjmujący opcje DbContext, które mogą być wstrzyknięte
         public WeatherDbContext(DbContextOptions<WeatherDbContext> options) : base(options)
         {
         }
 
         public DbSet<WeatherDaily> WeatherData { get; set; }
-        public DbSet<Temperature> Temperatures { get; set; }  // Załóżmy, że Temperature jest również encją
+        public DbSet<Temperature> Temperatures { get; set; }
+        public DbSet<Weather> Weather { get; set; }
+        public DbSet<WeatherHourly> WeatherHourlyData { get; set; }  // Dodanie nowego DbSet
 
-        // Opcjonalnie, zachowaj metodę OnConfiguring dla dodatkowej konfiguracji lub fallbacku
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            // Tylko jeśli nie przekazano żadnych opcji (Options nie zawiera już skonfigurowanego dostawcy)
             if (!options.IsConfigured)
             {
                 options.UseSqlite("Data Source=weather.db");
             }
         }
 
-        // Konfiguracja modelu i relacji między tabelami
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -48,7 +46,23 @@ namespace Instrukcja.Data
             modelBuilder.Entity<Weather>()
                 .Property(w => w.Id1)
                 .ValueGeneratedOnAdd();  // Konfiguracja autoinkrementacji dla Id1, jeśli jest to potrzebne
+
+
+            // Dodatkowe konfiguracje dla WeatherHourly
+            modelBuilder.Entity<WeatherHourly>()
+                .HasKey(wh => wh.Id);  // Klucz główny dla WeatherHourly
+
+            modelBuilder.Entity<WeatherHourly>()
+                .Property(wh => wh.Id)
+                .ValueGeneratedOnAdd();  // Autoinkrementacja dla Id, jeśli jest to potrzebne
+
+            modelBuilder.Entity<WeatherDaily>()
+                .HasMany(wd => wd.WeatherHourlies)
+                .WithOne(wh => wh.WeatherDaily)
+                .HasForeignKey(wh => wh.WeatherDailyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+
         }
     }
-    }
-
+}

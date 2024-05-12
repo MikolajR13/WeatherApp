@@ -3,9 +3,19 @@ using Instrukcja.Data;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.EntityFrameworkCore;
 using Instrukcja.Services;
+using Blazorise;
+using Blazorise.Bootstrap;
+using Blazorise.Icons.FontAwesome;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services
+    .AddBlazorise(options =>
+    {
+        options.Immediate = true;
+    })
+    .AddBootstrapProviders()
+    .AddFontAwesomeIcons();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -18,6 +28,8 @@ builder.Services.AddDbContext<WeatherDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("WeatherDb")));
 
 builder.Services.AddScoped<WeatherService>();
+builder.Services.AddScoped<ReadDataBaseService>();
+
 
 var app = builder.Build();
 
@@ -38,6 +50,7 @@ app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
 
 app.UseAuthentication();
 app.UseAuthorization();

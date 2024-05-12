@@ -5,17 +5,17 @@
 @using Instrukcja.Model
 @using Instrukcja.Services
 @using Microsoft.Data.Sqlite;
+@using Blazorise.Charts;
+@using Blazorise.Charts.Annotation;
 @inject WeatherService WeatherService
+@inject ReadDataBaseService ReadData
+
 <h1>Weather Overview</h1>
+
 
 @if (weatherData != null)
 {
-    <p>Location: @weatherData.Timezone (@weatherData.Lat, @weatherData.Lon)</p>
-    <p>Current Temperature: @FormatTemperature(weatherData.Current.Temp)</p>
-    <a href="/weather/current">Go to current weather</a>
-    <a href="/weather/minutely">Go to minutely weather</a>
-    <a href="/weather/hourly">Go to hourly weather</a>
-    <a href="/weather/daily">Go to daily weather</a>
+
 }
 else
 {
@@ -24,10 +24,31 @@ else
 
 @code {
     private WeatherResponse weatherData;
+    private WeatherDataResult weatherDataResult;
+    private LineChart<double> lineChart;
+    private LineChartOptions chartOptions;
+    private List<WeatherDaily> weatherDailies = new List<WeatherDaily>();
+    private List<string> labels;
+    private List<double> data;
+
+
+    public static DateTime UnixTimeStampToDateTime(long unixTimeStamp)
+    {
+        // Ustawienie punktu początkowego (epoch)
+        System.DateTime dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+        // Dodanie liczby sekund
+        dtDateTime = dtDateTime.AddSeconds(unixTimeStamp).ToLocalTime();
+        return dtDateTime;
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await FetchWeatherDataAsync();
+        //weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync();
+        //weatherDailies = weatherDataResult.DailiesData;
+        //labels = weatherDailies.Select(d => UnixTimeStampToDateTime(d.Dt).ToString("MMM dd")).ToList();
+        //weatherDailies.Select(d => d.Temp.Day).ToList();
+
     }
 
     private async Task<WeatherResponse> FetchWeatherDataAsync()
@@ -36,11 +57,21 @@ else
         {
             var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
-            if (weatherData != null && weatherData.Daily != null)
+            if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null)
             {
                 foreach( var day in weatherData.Daily)
                 {
-                    await WeatherService.AddWeatherAsync(day);
+                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime();
+                    day.DateDaily = dateTime.Date;
+                    await WeatherService.AddWeatherDailyAsync(day);
+                }
+
+                foreach(var hour in weatherData.Hourly)
+                {
+                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(hour.Dt).DateTime.ToLocalTime();
+                    hour.DateHourly = dateTime.Date;
+                    hour.Time = dateTime.TimeOfDay;
+                    await WeatherService.AddWeatherHourlyAsync(hour);
                 }
             }
 
@@ -51,6 +82,7 @@ else
         }
         return weatherData;
     }
+
 
     private string FormatTemperature(double kelvin)
     {

@@ -2,7 +2,11 @@
 {
     public class WeatherHourly
     {
+        public int Id { get; set; }
         public long Dt { get; set; }
+        public int WeatherDailyId { get; set; }
+        public DateTime DateHourly { get; set; }
+        public TimeSpan Time { get; set; }
         public double Temp { get; set; }
         public double Feels_like { get; set; }
         public int Pressure { get; set; }
@@ -16,5 +20,6 @@
         public int Wind_deg { get; set; }
         public List<Weather> Weather { get; set; }
         public double Pop { get; set; }
+        public WeatherDaily WeatherDaily { get; set; }  
     }
 }
