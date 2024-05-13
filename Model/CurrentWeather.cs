@@ -1,6 +1,6 @@
 ﻿namespace Instrukcja.Model
 {
-    public class CurrentWeather
+    public class CurrentWeather //Dosłownie 1:1 odpowiedź z API
     {
         public long Dt { get; set; }
         public double Temp { get; set; }

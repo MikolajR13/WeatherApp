@@ -23,10 +23,10 @@ builder.Services.AddAuthentication(CertificateAuthenticationDefaults.Authenticat
     .AddCertificate();
 //serwis do API
 builder.Services.AddScoped<HttpClient>();
-
+//rejsetrowanie serwisu do bazy danych
 builder.Services.AddDbContext<WeatherDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("WeatherDb")));
-
+//rejestrowanie w³asnych serwisów
 builder.Services.AddScoped<WeatherService>();
 builder.Services.AddScoped<ReadDataBaseService>();
 

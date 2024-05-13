@@ -1,11 +1,11 @@
 ﻿namespace Instrukcja.Model
 {
-    public class WeatherDaily
+    public class WeatherDaily //większość z API a jeżeli nie to jest opisane do czego co służy
     {
         public int Id { get; set; }
-        public int TempId { get; set; }
-        public DateTime DateDaily { get; set; }
-        public int FeelsLikeId { get; set; }
+        public int TempId { get; set; } //klucz obcy do Temperature ( w temperature to jest TemperatureId )
+        public DateTime DateDaily { get; set; } //Data - to co w Weather.razor dodajemy ręcznie ( 23-12-2024 00:00:00)
+        public int FeelsLikeId { get; set; } // klucz obcy do Temperature ( w temperature to jest TemperatureFellsId )
         public long Dt { get; set; }
         public long Sunrise { get; set; }
         public long Sunset { get; set; }
@@ -23,8 +23,8 @@
         public int Clouds { get; set; }
         public double Uvi { get; set; }
         public double Pop { get; set; }
-        public List<Weather> Weather { get; set; }
+        public List<Weather> Weather { get; set; } //zmienna nawigacyjna 
 
-        public List<WeatherHourly> WeatherHourlies { get; set; }
+        public List<WeatherHourly> WeatherHourlies { get; set; } //zmienna nawigacyjna na potrzeby bazy danych 
     }
 }

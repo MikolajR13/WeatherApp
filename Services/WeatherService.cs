@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Instrukcja.Data;
 using Instrukcja.Model;
 
-namespace Instrukcja.Services
+namespace Instrukcja.Services //wszystkie metody służące do zapisu, updatu i usuwania danych z bazy dancyh
 {
     public class WeatherService
     {
@@ -47,6 +47,7 @@ namespace Instrukcja.Services
 
         public async Task AddWeatherHourlyAsync(WeatherHourly weatherHourly)
         {
+            // WAŻNE - nadawanie klucza obcego w obiekcie weatherHourly - szukamy dnia, który ma taki sam dzień i przypisujemy obiektowi weatherHourly klucz pomocniczy weatherHourly.WeatherDailyId = WeatherDaily.Id
             var matchDaily = await _context.WeatherData
                 .FirstOrDefaultAsync(wd => wd.DateDaily.Date == weatherHourly.DateHourly.Date);
             if (matchDaily != null)

@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Instrukcja.Model;
 
-namespace Instrukcja.Data
+namespace Instrukcja.Data //Klasa do obsługi bazy danych
 {
     public class WeatherDbContext : DbContext
     {
@@ -9,12 +9,12 @@ namespace Instrukcja.Data
         {
         }
 
-        public DbSet<WeatherDaily> WeatherData { get; set; }
-        public DbSet<Temperature> Temperatures { get; set; }
-        public DbSet<Weather> Weather { get; set; }
-        public DbSet<WeatherHourly> WeatherHourlyData { get; set; }  // Dodanie nowego DbSet
+        public DbSet<WeatherDaily> WeatherData { get; set; } //inicjalizacja encji WeatherData - To są dane dzienne ( odpowiadające WeatherDaily.cs - taki jest typ nawet tej encji)
+        public DbSet<Temperature> Temperatures { get; set; } //inicjalizacja encji Temperatures - To są dane dzienne ( odpowiadające Temperature.cs - taki jest typ nawet tej encji)
+        public DbSet<Weather> Weather { get; set; } //inicjalizacja encji Weather - To są dane dzienne ( odpowiadające Weather.cs - taki jest typ nawet tej encji)
+        public DbSet<WeatherHourly> WeatherHourlyData { get; set; }  // inicjalizacja encji WeatherHourlyData - To są dane dzienne ( odpowiadające WeatherHourly.cs - taki jest typ nawet tej encji)
 
-        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        protected override void OnConfiguring(DbContextOptionsBuilder options) //opcjonalne gdyby w appsettings.json coś nie zadziałało
         {
             if (!options.IsConfigured)
             {
@@ -22,7 +22,7 @@ namespace Instrukcja.Data
             }
         }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder) //tworzenie bazy danych
         {
             base.OnModelCreating(modelBuilder);
 
@@ -31,21 +31,21 @@ namespace Instrukcja.Data
                 .HasOne(w => w.Temp)
                 .WithOne()
                 .HasForeignKey<WeatherDaily>(w => w.TempId)
-                .OnDelete(DeleteBehavior.Cascade);  // Określ zachowanie przy usuwaniu
+                .OnDelete(DeleteBehavior.Cascade);  // Określone zachowanie przy usuwaniu
 
             // Konfiguracja relacji jeden do jednego dla Feels_like
             modelBuilder.Entity<WeatherDaily>()
                 .HasOne(w => w.Feels_like)
                 .WithOne()
                 .HasForeignKey<WeatherDaily>(w => w.FeelsLikeId)
-                .OnDelete(DeleteBehavior.Cascade);  // Określ zachowanie przy usuwaniu
+                .OnDelete(DeleteBehavior.Cascade);  // Określone zachowanie przy usuwaniu
 
             modelBuilder.Entity<Weather>()
                 .HasKey(w => w.Id1);  // Ustawienie Id1 jako klucz główny
 
             modelBuilder.Entity<Weather>()
                 .Property(w => w.Id1)
-                .ValueGeneratedOnAdd();  // Konfiguracja autoinkrementacji dla Id1, jeśli jest to potrzebne
+                .ValueGeneratedOnAdd();  // Konfiguracja autoinkrementacji dla Id1
 
 
             // Dodatkowe konfiguracje dla WeatherHourly
@@ -54,13 +54,14 @@ namespace Instrukcja.Data
 
             modelBuilder.Entity<WeatherHourly>()
                 .Property(wh => wh.Id)
-                .ValueGeneratedOnAdd();  // Autoinkrementacja dla Id, jeśli jest to potrzebne
+                .ValueGeneratedOnAdd();  // Autoinkrementacja dla Id
 
-            modelBuilder.Entity<WeatherDaily>()
-                .HasMany(wd => wd.WeatherHourlies)
+            //relacja 1 do wielu między WeatherDaily a WeatherHourlyData
+            modelBuilder.Entity<WeatherDaily>() 
+                .HasMany(wd => wd.WeatherHourlies) //jedna WeatherDaily ma wiele WeatherHourlies
                 .WithOne(wh => wh.WeatherDaily)
-                .HasForeignKey(wh => wh.WeatherDailyId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey(wh => wh.WeatherDailyId) //Klucz obcy nadawany ręcznie 
+                .OnDelete(DeleteBehavior.Cascade); //co się dzieje przy usuwaniu
             
 
         }

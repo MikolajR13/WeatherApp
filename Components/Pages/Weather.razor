@@ -13,13 +13,13 @@
 <h1>Weather Overview</h1>
 
 
-@if (weatherData != null)
+@if (weatherData != null) //jeżeli udało nam się dostać dane z api
 {
-    foreach(var day in labels)
+    foreach(var day in labels)//dla każego dnia w liście labels wyświetlamy sobie zawartość - w tym przypadku datę
     {
         <p>Labels: @day</p>
     }
-    foreach(var tem in data)
+    foreach(var tem in data) //dla każdego tem(od temperatury) w liście data wypisujemy wszystkie temperatury - dnia, nocy, minimalna, maksymalna, poranna i popołudniowa
     {
         <p>Temperature Day: @tem.Day</p>
         <p>Temperature Night: @tem.Night</p>
@@ -29,22 +29,24 @@
         <p>Temperature Morn: @tem.Morn</p>
     }
 }
-else
+else // jeżeli nie to normalnie wyświetla się ten komunikat
 {
     <p>Loading weather data...</p>
 }
 
 @code {
-    private WeatherResponse weatherData;
-    private WeatherDataResult weatherDataResult;
-    private LineChart<double> lineChart;
-    private LineChartOptions chartOptions;
-    private List<WeatherDaily> weatherDailies = new List<WeatherDaily>();
-    private List<string> labels;
-    private List<Temperature> data;
+    private WeatherResponse weatherData; // definicja nowej klasy do której są wczytywane dane z api - klasa zdefiniowana w /Model/WeatherResponse.cs
+    private WeatherDataResult weatherDataResult; //definicja nowej klasy do której wczytujemy dane z bazy danych - zdefiniowana w /Model/WeatherDataResult.cs
+    private LineChart<double> lineChart; //in development - miał być do wykresu liniowego jakiś tam komponent ale jeszcze nie zrobiłem 
+    private LineChartOptions chartOptions; //tak samo jak u góry
+    private List<WeatherDaily> weatherDailies = new List<WeatherDaily>(); //lista o typie WeatherDaily - /Model/WeatherDaily.cs do której przekazujemy 
+                                                                          //wyłącznie część odpowiedzi z bazy danych żeby łatwiej było to ogarniać
+    private List<string> labels; //lista o typie string - wczytujemy do niej daty przekonwertowane na string z weatherDailies - u góry jest
+    private List<Temperature> data; //lista o typie Temperature - /Model/Temperature.cs do której wczytujemy z weatherDailies obiekty Temp żeby później wyświetlać
+    // wykonywać operacje na danych o temperaturze w ciągu dnia
 
 
-    public static DateTime UnixTimeStampToDateTime(long unixTimeStamp)
+    public static DateTime UnixTimeStampToDateTime(long unixTimeStamp) //funkcja do przekonwertowania czasu w formacie Unixowym na DateTime
     {
         // Ustawienie punktu początkowego (epoch)
         System.DateTime dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
@@ -53,39 +55,39 @@ else
         return dtDateTime;
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() //Wywołuje się automatycznie po otwarciu karty Weather 
     {
-        await FetchWeatherDataAsync();
-        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync();
-        weatherDailies = weatherDataResult.DailiesData;
-        labels = weatherDailies.Select(d => d.DateDaily.ToString()).ToList();
-        data = weatherDailies.Select(d => d.Temp).ToList();
+        await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
+        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync(); //ściąganie danych z bazy danych do obiektu weatherDataResult
+        weatherDailies = weatherDataResult.DailiesData; //Wyciągam jedynie dane dzienne ( są jeszcze godzinowe )
+        labels = weatherDailies.Select(d => d.DateDaily.ToString()).ToList(); //do listy labels dodaję wyłącznie daty w formacie string
+        data = weatherDailies.Select(d => d.Temp).ToList(); // do listy data dodaję obiekty Temp z temperaturami 
         
         
 
     }
 
-    private async Task<WeatherResponse> FetchWeatherDataAsync()
+    private async Task<WeatherResponse> FetchWeatherDataAsync() //funkcja do pobierania danych z api, fetchowania ich do obiektów oraz dodawania ( na razie tylko dodawania) do bazy danych
     {
         try
         {
-            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98";
-            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
-            if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null)
+            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98"; //url do API
+            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url); //pobieranie danych z API
+            if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null) //Jeżeli nie jest puste to 
             {
-                foreach( var day in weatherData.Daily)
+                foreach( var day in weatherData.Daily) //Dla każdego pobranego dnia musimy uzupełnić pole DateDaily ( bo nie występuje w odpowiedzi API a jest potrzebne dla bazy danych)
                 {
-                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime();
-                    day.DateDaily = dateTime.Date;
-                    await WeatherService.AddWeatherDailyAsync(day);
+                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime(); //zamiana czasu unixowego na DateTime
+                    day.DateDaily = dateTime.Date; //dodanie wyłącznie daty do pola DateDaily czyli dodajemy wyłącznie 12-02-2024 (potem jest jeszcze czas ale zawsze będzie 00:00:00)
+                    await WeatherService.AddWeatherDailyAsync(day); //dodajemy do bazy dancyh
                 }
 
-                foreach(var hour in weatherData.Hourly)
+                foreach(var hour in weatherData.Hourly) //to samo co u góry tylko dla każdej godziny z wyjątkiem takim że oprócz uzupełniania DateHourly uzupełniamy też Time czyli rozdzielamy datę na datę i godzinę
                 {
                     var dateTime = DateTimeOffset.FromUnixTimeSeconds(hour.Dt).DateTime.ToLocalTime();
-                    hour.DateHourly = dateTime.Date;
-                    hour.Time = dateTime.TimeOfDay;
-                    await WeatherService.AddWeatherHourlyAsync(hour);
+                    hour.DateHourly = dateTime.Date; //21-01-2024 00:00:00
+                    hour.Time = dateTime.TimeOfDay; //04:12:42
+                    await WeatherService.AddWeatherHourlyAsync(hour); //dodanie do bazy danych
                 }
             }
 
@@ -94,14 +96,15 @@ else
         {
             Console.Error.WriteLine($"Failed to load weather data: {ex.Message}");
         }
-        return weatherData;
+        return weatherData; //zwracamy cały obiekt
     }
 
 
-    private string FormatTemperature(double kelvin)
+    private string FormatTemperature(double kelvin) // zamiana temperatury z kelvinów na celcjusze ale na razie tego nie wykorzystujemy
     {
         return (kelvin - 273.15).ToString("N2");
     }
+    //teoretycznie nie potrzebne na razie
     public string uri1 = "/weather/current";
     public string uri2 = "/weather/minutely";
     public string uri3 = "/weather/hourly";
