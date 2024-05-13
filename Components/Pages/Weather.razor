@@ -79,7 +79,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
                 {
                     var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime(); //zamiana czasu unixowego na DateTime
                     day.DateDaily = dateTime.Date; //dodanie wyłącznie daty do pola DateDaily czyli dodajemy wyłącznie 12-02-2024 (potem jest jeszcze czas ale zawsze będzie 00:00:00)
-                    await WeatherService.AddWeatherDailyAsync(day); //dodajemy do bazy dancyh
+                    await WeatherService.UpdateOrAddWeatherDailyAsync(day); //dodajemy do bazy dancyh
                 }
 
                 foreach(var hour in weatherData.Hourly) //to samo co u góry tylko dla każdej godziny z wyjątkiem takim że oprócz uzupełniania DateHourly uzupełniamy też Time czyli rozdzielamy datę na datę i godzinę
@@ -87,7 +87,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
                     var dateTime = DateTimeOffset.FromUnixTimeSeconds(hour.Dt).DateTime.ToLocalTime();
                     hour.DateHourly = dateTime.Date; //21-01-2024 00:00:00
                     hour.Time = dateTime.TimeOfDay; //04:12:42
-                    await WeatherService.AddWeatherHourlyAsync(hour); //dodanie do bazy danych
+                    await WeatherService.UpdateOrAddWeatherHourlyAsync(hour); //dodanie do bazy danych
                 }
             }
 
