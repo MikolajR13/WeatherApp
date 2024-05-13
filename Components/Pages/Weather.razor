@@ -15,7 +15,19 @@
 
 @if (weatherData != null)
 {
-
+    foreach(var day in labels)
+    {
+        <p>Labels: @day</p>
+    }
+    foreach(var tem in data)
+    {
+        <p>Temperature Day: @tem.Day</p>
+        <p>Temperature Night: @tem.Night</p>
+        <p>Temperature Min: @tem.Min</p>
+        <p>Temperature Max: @tem.Max</p>
+        <p>Temperature Eve: @tem.Eve</p>
+        <p>Temperature Morn: @tem.Morn</p>
+    }
 }
 else
 {
@@ -29,7 +41,7 @@ else
     private LineChartOptions chartOptions;
     private List<WeatherDaily> weatherDailies = new List<WeatherDaily>();
     private List<string> labels;
-    private List<double> data;
+    private List<Temperature> data;
 
 
     public static DateTime UnixTimeStampToDateTime(long unixTimeStamp)
@@ -44,10 +56,12 @@ else
     protected override async Task OnInitializedAsync()
     {
         await FetchWeatherDataAsync();
-        //weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync();
-        //weatherDailies = weatherDataResult.DailiesData;
-        //labels = weatherDailies.Select(d => UnixTimeStampToDateTime(d.Dt).ToString("MMM dd")).ToList();
-        //weatherDailies.Select(d => d.Temp.Day).ToList();
+        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync();
+        weatherDailies = weatherDataResult.DailiesData;
+        labels = weatherDailies.Select(d => d.DateDaily.ToString()).ToList();
+        data = weatherDailies.Select(d => d.Temp).ToList();
+        
+        
 
     }
 

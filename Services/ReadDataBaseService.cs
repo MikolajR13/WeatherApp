@@ -25,7 +25,9 @@ namespace Instrukcja.Services
         {
             // Pobranie ostatnich 10 rekordów z WeatherDaily
             var last10Dailies = await _context.WeatherData
-                .OrderByDescending(w => w.Dt)  // Sortowanie malejąco po dacie
+                .Include(wd => wd.Temp)
+                .Include(wd => wd.Weather)
+                .Include(wd => wd.WeatherHourlies)  
                 .Take(10)                      // Pobranie ostatnich 10 rekordów
                 .ToListAsync();
 
@@ -35,9 +37,9 @@ namespace Instrukcja.Services
             // Dla każdego rekordu WeatherDaily pobierz odpowiednie rekordy WeatherHourly
             foreach (var daily in last10Dailies)
             {
-                var dateOnly = UnixTimeStampToDateTime(daily.Dt).Date;  // Konwersja na DateTime i wyciągnięcie daty
+                var dateOnly = daily.DateDaily;  // Konwersja na DateTime i wyciągnięcie daty
                 var hourliesForDay = await _context.WeatherHourlyData
-                    .Where(wh => UnixTimeStampToDateTime(wh.Dt).Date == dateOnly)  // Porównanie tylko daty
+                    .Where(wh => wh.DateHourly == dateOnly)  // Porównanie tylko daty
                     .OrderBy(wh => wh.Dt)  // Opcjonalne sortowanie po dacie
                     .Take(24)  // Pobranie do 24 rekordów
                     .ToListAsync();
