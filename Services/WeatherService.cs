@@ -27,55 +27,90 @@ namespace Instrukcja.Services //wszystkie metody służące do zapisu, updatu i 
         public async Task UpdateOrAddWeatherDailyAsync(WeatherDaily weather)
         {
             var existingWeather = await _context.WeatherData
-                .Include(w => w.Temp) //uwzględnianie Temp żeby ręcznie je zaktualizować, wpp będą nam się rekordy duplikowały
-                .Include(w => w.Feels_like) //to samo co u góry
-                .Include(w => w.Weather) // to samo co u góry
+                .Include(w => w.Temp)
+                .Include(w => w.Feels_like)
+                .Include(w => w.Weather)
+                .Include(w => w.WeatherHourlies)
                 .FirstOrDefaultAsync(w => w.DateDaily == weather.DateDaily);
-            if (existingWeather != null) // jeżeli nie jest pusty to 
+
+            if (existingWeather != null)
             {
-                _context.Entry(existingWeather).CurrentValues.SetValues(weather); //wszystkie normalne pola updatujemy ( czyli int string itp itd)
-                if(existingWeather.Temp !=null) //sprawdzamy czy jest Temp jakieś i jezeli jest to
+                Console.WriteLine($"Updating existing WeatherDaily for date: {weather.DateDaily}");
+
+                // Aktualizacja zwykłych właściwości bez kluczy
+                existingWeather.Clouds = weather.Clouds;
+                existingWeather.Dew_point = weather.Dew_point;
+                existingWeather.Dt = weather.Dt;
+                existingWeather.Humidity = weather.Humidity;
+                existingWeather.LocationName = weather.LocationName;
+                existingWeather.Moon_phase = weather.Moon_phase;
+                existingWeather.Moonrise = weather.Moonrise;
+                existingWeather.Moonset = weather.Moonset;
+                existingWeather.Pop = weather.Pop;
+                existingWeather.Pressure = weather.Pressure;
+                existingWeather.Sunrise = weather.Sunrise;
+                existingWeather.Sunset = weather.Sunset;
+                existingWeather.Uvi = weather.Uvi;
+                existingWeather.Wind_deg = weather.Wind_deg;
+                existingWeather.Wind_gust = weather.Wind_gust;
+                existingWeather.Wind_speed = weather.Wind_speed;
+
+                // Aktualizacja powiązanych encji
+                if (existingWeather.Temp != null)
                 {
-                    _context.Entry(existingWeather.Temp).CurrentValues.SetValues(weather.Temp); //ręcznie robimy update
+                    existingWeather.Temp.Day = weather.Temp.Day;
+                    existingWeather.Temp.Eve = weather.Temp.Eve;
+                    existingWeather.Temp.Max = weather.Temp.Max;
+                    existingWeather.Temp.Min = weather.Temp.Min;
+                    existingWeather.Temp.Morn = weather.Temp.Morn;
+                    existingWeather.Temp.Night = weather.Temp.Night;
                 }
-                else // jeżeli nie to dodajemy nowe Temp
+                else
                 {
                     existingWeather.Temp = weather.Temp;
                 }
-                if(existingWeather.Feels_like != null) //to samo co dla Temp
+
+                if (existingWeather.Feels_like != null)
                 {
-                    _context.Entry(existingWeather.Feels_like).CurrentValues.SetValues(weather.Feels_like);
+                    existingWeather.Feels_like.Day = weather.Feels_like.Day;
+                    existingWeather.Feels_like.Eve = weather.Feels_like.Eve;
+                    existingWeather.Feels_like.Max = weather.Feels_like.Max;
+                    existingWeather.Feels_like.Min = weather.Feels_like.Min;
+                    existingWeather.Feels_like.Morn = weather.Feels_like.Morn;
+                    existingWeather.Feels_like.Night = weather.Feels_like.Night;
                 }
                 else
                 {
                     existingWeather.Feels_like = weather.Feels_like;
                 }
-                if(existingWeather.Weather != null) //To samo co dla Temp
+
+                if (existingWeather.Weather != null && existingWeather.Weather.Count > 0)
                 {
-                    _context.Entry(existingWeather.Weather).CurrentValues.SetValues(weather.Weather);
+                    for (int i = 0; i < existingWeather.Weather.Count; i++)
+                    {
+                        existingWeather.Weather[i].Main = weather.Weather[i].Main;
+                        existingWeather.Weather[i].Description = weather.Weather[i].Description;
+                        existingWeather.Weather[i].Icon = weather.Weather[i].Icon;
+                    }
                 }
                 else
                 {
                     existingWeather.Weather = weather.Weather;
                 }
-                if(existingWeather.WeatherHourlies != null) //To samo co dla Temp
-                {
-                    _context.Entry(existingWeather.WeatherHourlies).CurrentValues.SetValues(weather.WeatherHourlies);
-                }
-                else
-                {
-                    existingWeather.WeatherHourlies = weather.WeatherHourlies;
-                }
-                           
-                _context.WeatherData.Update(existingWeather); //update
+
+                // WeatherHourlies będą aktualizowane w oddzielnej metodzie UpdateOrAddWeatherHourlyAsync
+
+                _context.WeatherData.Update(existingWeather);
             }
             else
             {
-                _context.WeatherData.Add(weather); //lub dodanie jeżeli nie znaleźliśmy rekordu
+                Console.WriteLine($"Adding new WeatherDaily for date: {weather.DateDaily}");
+                _context.WeatherData.Add(weather);
             }
-            
+
             await _context.SaveChangesAsync();
         }
+
 
         public async Task DeleteWeatherDailyAsync(WeatherDaily weather)
         {
@@ -91,44 +126,69 @@ namespace Instrukcja.Services //wszystkie metody służące do zapisu, updatu i 
 
         //ta funkcja działa tak, że wyszukuje w bazie danych rekord, który ma takie same pola DateHourly oraz Time jak rekord, który chcemy dodać do bazy danych
         //jeżeli znajdzie taki rekord to zamiast dodawać rekord to aktualizuje obecny. Jeżeli nie znajdzie to dodaje nowy rekord weatherHourly
-        public async Task UpdateOrAddWeatherHourlyAsync(Model.WeatherHourly weatherHourly) 
+        public async Task UpdateOrAddWeatherHourlyAsync(Model.WeatherHourly weatherHourly)
         {
-            //wyszukiwanie czy jest rekord o takiej samej DateHourly oraz Time
             var existingWeather = await _context.WeatherHourlyData
-                .Include(w => w.Weather) //uwzględniamy Weather bo jeżeli tego nie zrobimy to będą nam się duplikowały rekordy
+                .Include(w => w.Weather)
                 .FirstOrDefaultAsync(w => w.DateHourly == weatherHourly.DateHourly && w.Time == weatherHourly.Time);
-            if (existingWeather != null) { //jeżeli istnieje już taki rekord
 
-                _context.Entry(existingWeather).CurrentValues.SetValues(weatherHourly); //update wszystkich normalnych pól ( typu int, string, date time itp itd)
-                if(existingWeather.Weather != null) //jeżeli Weather nie jest puste 
+            if (existingWeather != null)
+            {
+                Console.WriteLine($"Updating existing WeatherHourly for date: {weatherHourly.DateHourly} and time: {weatherHourly.Time}");
+
+                // Aktualizacja zwykłych właściwości bez kluczy
+                existingWeather.Clouds = weatherHourly.Clouds;
+                existingWeather.Dew_point = weatherHourly.Dew_point;
+                existingWeather.Dt = weatherHourly.Dt;
+                existingWeather.Humidity = weatherHourly.Humidity;
+                existingWeather.Pop = weatherHourly.Pop;
+                existingWeather.Pressure = weatherHourly.Pressure;
+                existingWeather.Temp = weatherHourly.Temp;
+                existingWeather.Uvi = weatherHourly.Uvi;
+                existingWeather.Visibility = weatherHourly.Visibility;
+                existingWeather.Wind_deg = weatherHourly.Wind_deg;
+                existingWeather.Wind_gust = weatherHourly.Wind_gust;
+                existingWeather.Wind_speed = weatherHourly.Wind_speed;
+
+                // Aktualizacja powiązanej encji
+                if (existingWeather.Weather != null && existingWeather.Weather.Count > 0)
                 {
-                    _context.Entry(existingWeather.Weather).CurrentValues.SetValues(weatherHourly); //update Weather
+                    for (int i = 0; i < existingWeather.Weather.Count; i++)
+                    {
+                        existingWeather.Weather[i].Main = weatherHourly.Weather[i].Main;
+                        existingWeather.Weather[i].Description = weatherHourly.Weather[i].Description;
+                        existingWeather.Weather[i].Icon = weatherHourly.Weather[i].Icon;
+                    }
                 }
-                else //jeżeli jest puste to dodajemy
+                else
                 {
                     existingWeather.Weather = weatherHourly.Weather;
                 }
 
-                _context.WeatherHourlyData.Update(existingWeather); //update
+                _context.WeatherHourlyData.Update(existingWeather);
             }
-            else //jeżeli nie ma jeszcze takiego rekordu co ma taką samą datę i godzinę to 
-            {   // WAŻNE - nadawanie klucza obcego w obiekcie weatherHourly - szukamy dnia, który ma taki sam dzień i przypisujemy obiektowi weatherHourly klucz pomocniczy weatherHourly.WeatherDailyId = WeatherDaily.Id 
-                var matchDaily = await _context.WeatherData
-                .FirstOrDefaultAsync(wd => wd.DateDaily.Date == weatherHourly.DateHourly.Date);
+            else
+            {
+                Console.WriteLine($"Adding new WeatherHourly for date: {weatherHourly.DateHourly} and time: {weatherHourly.Time}");
 
-                    if (matchDaily != null)
-                    {
-                        weatherHourly.WeatherDailyId = matchDaily.Id;
-                    }
-                    else
-                    {
-                        throw new Exception("No matching WeatherDaily record found for the given date!");
-                    }
-                    _context.WeatherHourlyData.Add(weatherHourly); //dodanie nowego rekordu
+                var matchDaily = await _context.WeatherData
+                    .FirstOrDefaultAsync(wd => wd.DateDaily.Date == weatherHourly.DateHourly.Date);
+
+                if (matchDaily != null)
+                {
+                    weatherHourly.WeatherDailyId = matchDaily.Id;
+                }
+                else
+                {
+                    throw new Exception("No matching WeatherDaily record found for the given date!");
+                }
+
+                _context.WeatherHourlyData.Add(weatherHourly);
             }
-             
-            await _context.SaveChangesAsync();  //save
+
+            await _context.SaveChangesAsync();
         }
+
 
         public async Task DeleteWeatherHourlyAsync(WeatherHourly weatherHourly)
         {
