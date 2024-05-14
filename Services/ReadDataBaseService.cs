@@ -21,14 +21,15 @@ namespace Instrukcja.Services //serwis, w którym odczytujemy dane z bazy danych
             dtDateTime = dtDateTime.AddSeconds(unixTimeStamp).ToLocalTime();
             return dtDateTime;
         }
-        public async Task<WeatherDataResult> GetLast10WeatherDailiesWithHourliesAsync() //metoda gdzie pobieramy 10 ostatnich dni, które zostały dodane do bazy dancych 
+        public async Task<WeatherDataResult> GetLast10WeatherDailiesWithHourliesAsync(string location) //metoda gdzie pobieramy 10 ostatnich dni, które zostały dodane do bazy dancych 
         {
             // Pobranie ostatnich 10 rekordów z WeatherDaily
             var last10Dailies = await _context.WeatherData
                 .Include(wd => wd.Temp) //dodajemy też obiekt Temp, który jest powiązany relacją z naszym WeatherData więc nie musimy się martwić czy się poprawny doda
                 .Include(wd => wd.Weather) //Tak samo jak z Temp dodajemy Weather
                 .Include(wd => wd.WeatherHourlies)  //Dodajemy również dla każdego dnia powiązane relacją dane godzinowe
-                .Take(10)                      // Pobranie ostatnich 10 rekordów
+                .Where(wd => wd.LocationName ==location)
+                .Take(10)// Pobranie ostatnich 10 rekordów                
                 .ToListAsync(); // i to wszystko do listy leci
 
             // Lista na wszystkie powiązane rekordy WeatherHourly

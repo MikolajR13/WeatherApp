@@ -6,6 +6,7 @@
         public int TempId { get; set; } //klucz obcy do Temperature ( w temperature to jest TemperatureId )
         public DateTime DateDaily { get; set; } //Data - to co w Weather.razor dodajemy ręcznie ( 23-12-2024 00:00:00)
         public int FeelsLikeId { get; set; } // klucz obcy do Temperature ( w temperature to jest TemperatureFellsId )
+        public string LocationName { get; set; }
         public long Dt { get; set; }
         public long Sunrise { get; set; }
         public long Sunset { get; set; }

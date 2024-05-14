@@ -62,7 +62,11 @@ namespace Instrukcja.Data //Klasa do obsługi bazy danych
                 .WithOne(wh => wh.WeatherDaily)
                 .HasForeignKey(wh => wh.WeatherDailyId) //Klucz obcy nadawany ręcznie 
                 .OnDelete(DeleteBehavior.Cascade); //co się dzieje przy usuwaniu
+
             
+            modelBuilder.Entity<WeatherDaily>()
+                .Property(wd => wd.LocationName).HasMaxLength(255);
+
 
         }
     }

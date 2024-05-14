@@ -7,6 +7,11 @@
 @using Microsoft.Data.Sqlite;
 @using Blazorise.Charts;
 @using Blazorise.Charts.Annotation;
+@using System;
+@using System.Net.Http;
+@using System.Threading.Tasks;
+@using Newtonsoft.Json
+@using System.Globalization;
 @inject WeatherService WeatherService
 @inject ReadDataBaseService ReadData
 
@@ -15,6 +20,8 @@
 
 @if (weatherData != null) //jeżeli udało nam się dostać dane z api
 {
+    <p>Lat: @weatherData.Lat</p>
+    <p>Lon: @weatherData.Lon</p>
     foreach(var day in labels)//dla każego dnia w liście labels wyświetlamy sobie zawartość - w tym przypadku datę
     {
         <p>Labels: @day</p>
@@ -43,7 +50,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
                                                                           //wyłącznie część odpowiedzi z bazy danych żeby łatwiej było to ogarniać
     private List<string> labels; //lista o typie string - wczytujemy do niej daty przekonwertowane na string z weatherDailies - u góry jest
     private List<Temperature> data; //lista o typie Temperature - /Model/Temperature.cs do której wczytujemy z weatherDailies obiekty Temp żeby później wyświetlać
-    // wykonywać operacje na danych o temperaturze w ciągu dnia
+                                    // wykonywać operacje na danych o temperaturze w ciągu dnia
 
 
     public static DateTime UnixTimeStampToDateTime(long unixTimeStamp) //funkcja do przekonwertowania czasu w formacie Unixowym na DateTime
@@ -58,12 +65,13 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
     protected override async Task OnInitializedAsync() //Wywołuje się automatycznie po otwarciu karty Weather 
     {
         await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
-        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync(); //ściąganie danych z bazy danych do obiektu weatherDataResult
-        weatherDailies = weatherDataResult.DailiesData; //Wyciągam jedynie dane dzienne ( są jeszcze godzinowe )
-        labels = weatherDailies.Select(d => d.DateDaily.ToString()).ToList(); //do listy labels dodaję wyłącznie daty w formacie string
-        data = weatherDailies.Select(d => d.Temp).ToList(); // do listy data dodaję obiekty Temp z temperaturami 
-        
-        
+        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync("Warszawa"); //ściąganie danych z bazy danych do obiektu weatherDataResult
+        if(weatherDataResult != null)
+        {
+            weatherDailies = weatherDataResult.DailiesData; //Wyciągam jedynie dane dzienne ( są jeszcze godzinowe )
+            labels = weatherDailies.Select(d => d.DateDaily.ToString()).ToList(); //do listy labels dodaję wyłącznie daty w formacie string
+            data = weatherDailies.Select(d => d.Temp).ToList(); // do listy data dodaję obiekty Temp z temperaturami 
+        }
 
     }
 
@@ -78,6 +86,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
                 foreach( var day in weatherData.Daily) //Dla każdego pobranego dnia musimy uzupełnić pole DateDaily ( bo nie występuje w odpowiedzi API a jest potrzebne dla bazy danych)
                 {
                     var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime(); //zamiana czasu unixowego na DateTime
+                    day.LocationName = await ReverseGeocode(weatherData.Lat, weatherData.Lon);
                     day.DateDaily = dateTime.Date; //dodanie wyłącznie daty do pola DateDaily czyli dodajemy wyłącznie 12-02-2024 (potem jest jeszcze czas ale zawsze będzie 00:00:00)
                     await WeatherService.UpdateOrAddWeatherDailyAsync(day); //dodajemy do bazy dancyh
                 }
@@ -105,9 +114,63 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
         return (kelvin - 273.15).ToString("N2");
     }
     //teoretycznie nie potrzebne na razie
-    public string uri1 = "/weather/current";
-    public string uri2 = "/weather/minutely";
-    public string uri3 = "/weather/hourly";
-    public string uri4 = "/weather/daily";
 
+    // metoda wysyłająca zapytanie do API openstreetmap zamieniająca stringa - adres np. Warszawa na lat i lon => POTRZEBNE W PRZYSZŁOŚCI DO WYSYŁANIA ZAPYTAŃ NA KONKRETNE LOKALIZACJE"
+    private static async Task<Location> Geocode(string address)
+    {
+        string url = "https://nominatim.openstreetmap.org/search";
+        string query = $"?format=json&q={Uri.EscapeDataString(address)}";
+        using (HttpClient client = new HttpClient())
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", "C#.net Weather App Student Project (264237@student.pwr.edu.pl)");  
+            HttpResponseMessage response = await client.GetAsync(url + query);
+            if (response.IsSuccessStatusCode)
+            {
+                string jsonResult = await response.Content.ReadAsStringAsync();
+                var results = JsonConvert.DeserializeObject<NominatimResponseGeocode[]>(jsonResult);
+                if (results.Length > 0)
+                {
+                    return new Location { Latitude = double.Parse(results[0].lat), Longitude = double.Parse(results[0].lon) };
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            return null; 
+        }
+    }
+
+    //metoda zamieniająca lat i lon na adres słownie np. Warszawa => POTRZEBNE WYŁĄCZNIE DO ZAPISU DO BAZY DANYCH <=
+    private static async Task<string> ReverseGeocode(double lat, double lon) 
+    {
+        string url = "https://nominatim.openstreetmap.org/reverse";
+        string query = $"?lat={lat.ToString(CultureInfo.InvariantCulture)}&lon={lon.ToString(CultureInfo.InvariantCulture)}&format=json";
+
+        using(HttpClient client = new HttpClient())
+        {
+            //client.DefaultRequestHeaders.Add("User-Agent", "C#.net Weather App Student Project (264237@student.pwr.edu.pl)");
+            HttpResponseMessage response = await client.GetAsync(url + query);
+            if(response.IsSuccessStatusCode)
+            {
+                string jsonResult = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<NominatimResponseReverseGeocode>(jsonResult);
+                Console.WriteLine(result.display_name);
+                if (result.display_name != null && result != null)
+                {
+                    return result.display_name;
+                }
+                else
+                {
+                    return "No location found :(";
+                }
+            }
+            else
+            {
+                string errorMessage = await response.Content.ReadAsStringAsync();  // To pokaże błąd z API
+                Console.WriteLine(errorMessage);
+                return "Zesrało się :(";
+            }
+        }
+    }
 }
