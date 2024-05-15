@@ -16,6 +16,7 @@
         public int Clouds { get; set; } //
         public int Visibility { get; set; }
         public double Wind_speed { get; set; } //
+        public string LocationName { get; set; }
         public double Wind_gust { get; set; } //
         public int Wind_deg { get; set; } //
         public List<Weather> Weather { get; set; } //zmienna nawigacyjna do Weather.cs //

@@ -31,7 +31,7 @@ namespace Instrukcja.Services //wszystkie metody służące do zapisu, updatu i 
                 .Include(w => w.Feels_like)
                 .Include(w => w.Weather)
                 .Include(w => w.WeatherHourlies)
-                .FirstOrDefaultAsync(w => w.DateDaily == weather.DateDaily);
+                .FirstOrDefaultAsync(w => w.DateDaily == weather.DateDaily && w.LocationName == weather.LocationName);
 
             if (existingWeather != null)
             {
@@ -130,7 +130,7 @@ namespace Instrukcja.Services //wszystkie metody służące do zapisu, updatu i 
         {
             var existingWeather = await _context.WeatherHourlyData
                 .Include(w => w.Weather)
-                .FirstOrDefaultAsync(w => w.DateHourly == weatherHourly.DateHourly && w.Time == weatherHourly.Time);
+                .FirstOrDefaultAsync(w => w.DateHourly == weatherHourly.DateHourly && w.Time == weatherHourly.Time && w.LocationName == weatherHourly.LocationName);
 
             if (existingWeather != null)
             {

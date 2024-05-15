@@ -41,15 +41,21 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
 }
 
 @code {
-    private WeatherResponse weatherData; // definicja nowej klasy do której są wczytywane dane z api - klasa zdefiniowana w /Model/WeatherResponse.cs
-    private WeatherDataResult weatherDataResult; //definicja nowej klasy do której wczytujemy dane z bazy danych - zdefiniowana w /Model/WeatherDataResult.cs
-    private LineChart<double> lineChart; //in development - miał być do wykresu liniowego jakiś tam komponent ale jeszcze nie zrobiłem
-    private LineChartOptions chartOptions; //tak samo jak u góry
-    private List<WeatherDaily> weatherDailies = new List<WeatherDaily>(); //lista o typie WeatherDaily - /Model/WeatherDaily.cs do której przekazujemy
-                                                                          //wyłącznie część odpowiedzi z bazy danych żeby łatwiej było to ogarniać
+    //potrzebne do frontu
+    private string inputCity = "Warszawa"; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury
     private List<string> labels; //lista o typie string - wczytujemy do niej daty przekonwertowane na string z weatherDailies - u góry jest
-    private List<Temperature> data; //lista o typie Temperature - /Model/Temperature.cs do której wczytujemy z weatherDailies obiekty Temp żeby później wyświetlać
-                                    // wykonywać operacje na danych o temperaturze w ciągu dnia
+    private List<Temperature> data; //lista o typie Temperature - /Model/Temperature.cs do której wczytujemy z weatherDailies obiekty Temp żeby później wyświetlać i wykonywać operacje na danych o temperaturze w ciągu dnia
+    private WeatherDataResult weatherDataResult; //definicja nowego obiektu do którego wczytujemy dane z bazy danych - zdefiniowana w /Model/WeatherDataResult.cs 
+    private List<WeatherDaily> weatherDailies = new List<WeatherDaily>(); //lista o typie WeatherDaily - /Model/WeatherDaily.cs do której przekazujemy wyłącznie część odpowiedzi z bazy danych żeby łatwiej było to ogarniać
+    
+    //raczej nie potrzebne do frontu
+    private Location location;
+    private WeatherResponse weatherData; // definicja nowej klasy do której są wczytywane dane z api - klasa zdefiniowana w /Model/WeatherResponse.cs
+    //private LineChart<double> lineChart; //in development - miał być do wykresu liniowego jakiś tam komponent ale jeszcze nie zrobiłem
+    //private LineChartOptions chartOptions; //tak samo jak u góry
+    
+                                                                          //
+    
 
     public static DateTime UnixTimeStampToDateTime(long unixTimeStamp) //funkcja do przekonwertowania czasu w formacie Unixowym na DateTime
     {
@@ -60,10 +66,11 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
         return dtDateTime;
     }
 
-    protected override async Task OnParametersSetAsync() //Wywołuje się za każdym razem, gdy parametry komponentu są ustawione
+    protected override async Task OnParametersSetAsync() //Wywołuje się za każdym razem, gdy parametry komponentu są ustawione //WAŻNE - ZROBIĆ BUTTON SEARCH, KTÓRY BĘDZIE PRZEŁADOWYWAŁ STRONĘ ZA KAŻDYM WYSZUKANIEM NOWEGO MIEJSCA
     {
         await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
-        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync("Warszawa"); //ściąganie danych z bazy danych do obiektu weatherDataResult
+        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync(inputCity); //ściąganie danych z bazy danych do obiektu weatherDataResult
+
         if (weatherDataResult != null)
         {
             weatherDailies = weatherDataResult.DailiesData; //Wyciągam jedynie dane dzienne ( są jeszcze godzinowe )
@@ -72,30 +79,55 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
         }
     }
 
-    private async Task<WeatherResponse> FetchWeatherDataAsync() //funkcja do pobierania danych z api, fetchowania ich do obiektów oraz dodawania ( na razie tylko dodawania) do bazy danych
+    private async Task<WeatherResponse> FetchWeatherDataAsync() //funkcja do pobierania danych z api, fetchowania ich do obiektów oraz updatowania i dodawania do bazy danych
     {
         try
         {
-            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98"; //url do API
+            location = await Geocode(inputCity);
+
+            var lat_fromgeo = location.Latitude;
+            var lon_fromgeo = location.Longitude;
+
+            Console.WriteLine(inputCity);
+            Console.WriteLine(lat_fromgeo);
+            Console.WriteLine(lon_fromgeo);
+
+            var adres = await ReverseGeocode(lat_fromgeo, lon_fromgeo);
+
+            Console.Write(adres);
+
+            string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
+            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat_fromgeo}&lon={lon_fromgeo}&appid={apiKey}";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url); //pobieranie danych z API
+
             if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null) //Jeżeli nie jest puste to
             {
                 foreach (var day in weatherData.Daily) //Dla każdego pobranego dnia musimy uzupełnić pole DateDaily ( bo nie występuje w odpowiedzi API a jest potrzebne dla bazy danych)
                 {
 
                     var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime(); //zamiana czasu unixowego na DateTime
-                    var Location = await ReverseGeocode(weatherData.Lat, weatherData.Lon);
-                    Console.WriteLine(Location);
-                    day.LocationName = Location;
+
+                    Console.WriteLine(weatherData.Lat);
+                    Console.WriteLine(weatherData.Lon);
+                    Console.WriteLine(inputCity);
+
+                    day.LocationName = inputCity;
                     day.DateDaily = dateTime.Date; //dodanie wyłącznie daty do pola DateDaily czyli dodajemy wyłącznie 12-02-2024 (potem jest jeszcze czas ale zawsze będzie 00:00:00)
+
                     await WeatherService.UpdateOrAddWeatherDailyAsync(day); //dodajemy do bazy dancyh
                 }
 
                 foreach (var hour in weatherData.Hourly) //to samo co u góry tylko dla każdej godziny z wyjątkiem takim że oprócz uzupełniania DateHourly uzupełniamy też Time czyli rozdzielamy datę na datę i godzinę
                 {
                     var dateTime = DateTimeOffset.FromUnixTimeSeconds(hour.Dt).DateTime.ToLocalTime();
+
                     hour.DateHourly = dateTime.Date; //21-01-2024 00:00:00
                     hour.Time = dateTime.TimeOfDay; //04:12:42
+                    
+                    Console.WriteLine(inputCity);
+
+                    hour.LocationName = inputCity;
+
                     await WeatherService.UpdateOrAddWeatherHourlyAsync(hour); //dodanie do bazy danych
                 }
             }
@@ -118,14 +150,18 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
     {
         string url = "https://nominatim.openstreetmap.org/search";
         string query = $"?format=json&q={Uri.EscapeDataString(address)}";
+
         using (HttpClient client = new HttpClient())
         {
             client.DefaultRequestHeaders.Add("User-Agent", "C#.net Weather App Student Project (264237@student.pwr.edu.pl)");
+
             HttpResponseMessage response = await client.GetAsync(url + query);
+
             if (response.IsSuccessStatusCode)
             {
                 string jsonResult = await response.Content.ReadAsStringAsync();
                 var results = JsonConvert.DeserializeObject<NominatimResponseGeocode[]>(jsonResult);
+
                 if (results.Length > 0)
                 {
                     return new Location { Latitude = double.Parse(results[0].lat, CultureInfo.InvariantCulture), Longitude = double.Parse(results[0].lon, CultureInfo.InvariantCulture) };
@@ -149,10 +185,12 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
         {
             client.DefaultRequestHeaders.Add("User-Agent", "C#.net Weather App Student Project (264237@student.pwr.edu.pl)");
             HttpResponseMessage response = await client.GetAsync(url + query);
+
             if (response.IsSuccessStatusCode)
             {
                 string jsonResult = await response.Content.ReadAsStringAsync();
                 var result = JsonConvert.DeserializeObject<NominatimResponseReverseGeocode>(jsonResult);
+
                 if (result != null && result.Address != null && result.Address.City != null)
                 {
                     return result.Address.City;
@@ -165,9 +203,16 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
             else
             {
                 string errorMessage = await response.Content.ReadAsStringAsync();  // To pokaże błąd z API
+
                 Console.WriteLine(errorMessage);
+
                 return "Zesrało się :(";
             }
-        }
-    }
+        } 
+        //dorobić funkcje, które wyciągają inne dane niż temperatura i data
+        //wyświetlić wszystkie dane jakie mogę żeby zobaczyć czy sa dobrze przekonwertowane
+        //sprawdzić czy w odpowiedzi z bazy danych jak pobieramy całą tabele daily są dla każdego dnia dane dla godzin
+
+
+    } //zrobić interfejs do pobierania danych z bazy danych
 }
