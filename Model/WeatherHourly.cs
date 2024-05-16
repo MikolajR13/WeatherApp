@@ -6,7 +6,7 @@
         public long Dt { get; set; } //
         public int WeatherDailyId { get; set; } //klucz obcy do relacji z WeatherDaily - ustawiany ręcznie w ReadDataBaseService.cs (katalog Services)
         public DateTime DateHourly { get; set; } //Data ustawiana ręcznie w Weather.razor (24-12-2024 00:00:00)
-        public TimeSpan Time { get; set; } //czas ustawiany ręcznie w Weather.razor (12:32:11)
+        public TimeOnly Time { get; set; } //czas ustawiany ręcznie w Weather.razor (12:32:11)
         public double Temp { get; set; } //
         public double Feels_like { get; set; } //
         public int Pressure { get; set; } //

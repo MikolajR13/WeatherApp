@@ -21,10 +21,10 @@ namespace Instrukcja.Services //serwis, w którym odczytujemy dane z bazy danych
             {
                 var weatherHourlies = await _context.WeatherHourlyData
                     .Include(wh => wh.WeatherDaily)
-                    .Where(wh => wh.WeatherDaily.LocationName == location)
+                    .Where(wh => wh.LocationName == location)
                     .OrderBy(wh => wh.DateHourly)
                     .ThenBy(wh => wh.Time)
-                    .Take(46)
+                    .Take(48)
                     .ToListAsync();
 
                 var Temperatures = new List<double>();
@@ -36,7 +36,9 @@ namespace Instrukcja.Services //serwis, w którym odczytujemy dane z bazy danych
                 foreach(var wh in weatherHourlies)
                 {
                     Temperatures.Add(wh.Temp);
+                    Console.WriteLine(Temperatures);
                     Data.Add($"{wh.DateHourly.ToShortDateString()} {wh.Time}");
+                    Console.WriteLine(Data);
 
                     // public List<string> inputTypeOfData = new List<string> {"Temperatura", "Zachmurzenie", "Prędkość Wiatru", "Ciśnienie Atmosferyczne", "Wilgotność powietrza", "Prawdopodobieństwo opadów" };
 
@@ -53,7 +55,9 @@ namespace Instrukcja.Services //serwis, w którym odczytujemy dane z bazy danych
                     };
 
                     SelectedData.Add(value);
+                    Console.WriteLine(SelectedData);
                     FeelsLikeTemperature.Add(wh.Feels_like);
+                    Console.WriteLine(FeelsLikeTemperature);
                     MinMaxTemperatues.Add((wh.Wind_gust, wh.Wind_gust)); //useless, nie potrzebujemy tego wyjebane musiałem coś wpisać żeby działało xd
                 }
                 return (Temperatures, MinMaxTemperatues, Data, SelectedData, FeelsLikeTemperature);
