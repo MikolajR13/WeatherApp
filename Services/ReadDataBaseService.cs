@@ -13,46 +13,99 @@ namespace Instrukcja.Services //serwis, w którym odczytujemy dane z bazy danych
         {
             _context = context;
         }
-        public static DateTime UnixTimeStampToDateTime(long unixTimeStamp)  //zamiana czas z unixowego na DateTime
-        {
-            // Ustawienie punktu początkowego (epoch)
-            System.DateTime dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
-            // Dodanie liczby sekund
-            dtDateTime = dtDateTime.AddSeconds(unixTimeStamp).ToLocalTime();
-            return dtDateTime;
-        }
-        public async Task<WeatherDataResult> GetLast10WeatherDailiesWithHourliesAsync(string location) //metoda gdzie pobieramy 10 ostatnich dni, które zostały dodane do bazy dancych 
-        {
-            // Pobranie ostatnich 10 rekordów z WeatherDaily
-            var last10Dailies = await _context.WeatherData
-                .Include(wd => wd.Temp) //dodajemy też obiekt Temp, który jest powiązany relacją z naszym WeatherData więc nie musimy się martwić czy się poprawny doda
-                .Include(wd => wd.Weather) //Tak samo jak z Temp dodajemy Weather
-                .Include(wd => wd.WeatherHourlies)  //Dodajemy również dla każdego dnia powiązane relacją dane godzinowe
-                .Where(wd => wd.LocationName ==location)
-                .Take(10)// Pobranie ostatnich 10 rekordów                
-                .ToListAsync(); // i to wszystko do listy leci
 
-            // Lista na wszystkie powiązane rekordy WeatherHourly
-            var allHourlies = new List<WeatherHourly>();
-
-            // Dla każdego rekordu WeatherDaily pobierz odpowiednie rekordy WeatherHourly
-            foreach (var daily in last10Dailies)  
+        public async Task<(List<double> Temperatures, List<(double Min, double Max)> MinMaxTemperatues, List<string> Data, List<double> SelectedData,  List<double> FeelsLikeTemperature)> 
+            GetWeatherDataFromDataBase(string inputDataType, string location, bool isHourly = false)
+        {
+            if(isHourly) 
             {
-                var dateOnly = daily.DateDaily;  // Wyciągnięcie daty dla danego dnia ( dlatego to wcześniej było potrzebne)
-                var hourliesForDay = await _context.WeatherHourlyData
-                    .Where(wh => wh.DateHourly == dateOnly)  // Porównanie tylko daty
-                    .OrderBy(wh => wh.Dt)  // Opcjonalne sortowanie po dacie
-                    .Take(24)  // Pobranie do 24 rekordów
+                var weatherHourlies = await _context.WeatherHourlyData
+                    .Include(wh => wh.WeatherDaily)
+                    .Where(wh => wh.WeatherDaily.LocationName == location)
+                    .OrderBy(wh => wh.DateHourly)
+                    .ThenBy(wh => wh.Time)
+                    .Take(46)
                     .ToListAsync();
 
-                allHourlies.AddRange(hourliesForDay);  // Dodajemy do głównej listy
-            }
+                var Temperatures = new List<double>();
+                var MinMaxTemperatues = new List<(double Min, double Max)>();
+                var Data = new List<string>();
+                var SelectedData = new List<double>();
+                var FeelsLikeTemperature = new List<double>();
 
-            return new WeatherDataResult
+                foreach(var wh in weatherHourlies)
+                {
+                    Temperatures.Add(wh.Temp);
+                    Data.Add($"{wh.DateHourly.ToShortDateString()} {wh.Time}");
+
+                    // public List<string> inputTypeOfData = new List<string> {"Temperatura", "Zachmurzenie", "Prędkość Wiatru", "Ciśnienie Atmosferyczne", "Wilgotność powietrza", "Prawdopodobieństwo opadów" };
+
+
+                    double value = inputDataType switch
+                    {
+                        "Temperatura" => wh.Temp,
+                        "Zachmurzenie" => wh.Clouds,
+                        "Prędkość Wiatru" => wh.Wind_speed,
+                        "Ciśnienie Atmosferyczne" => wh.Pressure,
+                        "Wilgotność Powietrza" => wh.Humidity,
+                        "Prawdopodobieństwo Opadów" => wh.Pop,
+                        _ => wh.Pop
+                    };
+
+                    SelectedData.Add(value);
+                    FeelsLikeTemperature.Add(wh.Feels_like);
+                    MinMaxTemperatues.Add((wh.Wind_gust, wh.Wind_gust)); //useless, nie potrzebujemy tego wyjebane musiałem coś wpisać żeby działało xd
+                }
+                return (Temperatures, MinMaxTemperatues, Data, SelectedData, FeelsLikeTemperature);
+            
+            }
+            else
             {
-                DailiesData = last10Dailies,
-                HourliesData = allHourlies
-            };
+                var weatherDailies = await _context.WeatherData
+                    .Include(wd => wd.Temp)
+                    .Include(wd => wd.Feels_like)
+                    .Include(wd => wd.Weather)
+                    .Where(wd => wd.LocationName == location)
+                    .OrderBy(wd => wd.DateDaily)
+                    .Take(8)
+                    .ToListAsync();
+
+                var Temperatures = new List<double>();
+                var MinMaxTemperatues = new List<(double Min, double Max)>();
+                var Data = new List<string>();
+                var SelectedData = new List<double>();
+                var FeelsLikeTemperature = new List<double>();
+
+                foreach(var wd in weatherDailies)
+                {
+                    Temperatures.Add(wd.Temp.Morn);
+                    Temperatures.Add(wd.Temp.Day);
+                    Temperatures.Add(wd.Temp.Eve);
+                    Temperatures.Add(wd.Temp.Night);
+                    MinMaxTemperatues.Add((wd.Temp.Min, wd.Temp.Max));
+                    Data.Add(wd.DateDaily.ToShortDateString());
+                    
+                    double value = inputDataType switch
+                {
+                    "Temperatura" => wd.Temp.Day,
+                    "Zachmurzenie" => wd.Clouds,
+                    "Prędkość Wiatru" => wd.Wind_speed,
+                    "Ciśnienie Atmosferyczne" => wd.Pressure,
+                    "Wilgotność Powietrza" => wd.Humidity,
+                    "Prawdopodobieństwo Opadów" => wd.Pop,
+                    _ => wd.Pop
+                };
+
+                    SelectedData.Add(value);
+                    FeelsLikeTemperature.Add(wd.Feels_like.Morn);
+                    FeelsLikeTemperature.Add(wd.Feels_like.Day);
+                    FeelsLikeTemperature.Add(wd.Feels_like.Eve);
+                    FeelsLikeTemperature.Add(wd.Feels_like.Night);
+
+                }
+
+                return (Temperatures, MinMaxTemperatues, Data, SelectedData, FeelsLikeTemperature);
+            }
         }
 
     }

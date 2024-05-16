@@ -19,20 +19,26 @@
 
 @if (weatherData != null) //jeżeli udało nam się dostać dane z api
 {
-    <p>Lat: @weatherData.Lat</p>
-    <p>Lon: @weatherData.Lon</p>
-    foreach (var day in labels) //dla każego dnia w liście labels wyświetlamy sobie zawartość - w tym przypadku datę
+    <p>@inputCity</p>
+    foreach(var day in datesFromDataBase)
     {
-        <p>Labels: @day</p>
+        <p> Dzień : @day</p>
     }
-    foreach (var tem in data) //dla każdego tem(od temperatury) w liście data wypisujemy wszystkie temperatury - dnia, nocy, minimalna, maksymalna, poranna i popołudniowa
+    foreach(var temp in temperaturesFromDataBase)
     {
-        <p>Temperature Day: @tem.Day</p>
-        <p>Temperature Night: @tem.Night</p>
-        <p>Temperature Min: @tem.Min</p>
-        <p>Temperature Max: @tem.Max</p>
-        <p>Temperature Eve: @tem.Eve</p>
-        <p>Temperature Morn: @tem.Morn</p>
+        <p>Temperatura: @temp</p>
+    }
+    foreach (var minmax in minMaxTempsFromDataBase)
+    {
+        <p>Min: @minmax.Min Max: @minmax.Max</p>
+    }
+    foreach(var selected in selectedDataFromDataBase)
+    {
+        <p>@selectedTypeOfData: @selected</p>
+    }
+    foreach(var feels in feelsLikeFromDataBase)
+    {
+        <p>Temperatura feels: @feels</p>
     }
 }
 else // jeżeli nie to normalnie wyświetla się ten komunikat
@@ -42,20 +48,26 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
 
 @code {
     //potrzebne do frontu
-    private string inputCity = "Warszawa"; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury
-    private List<string> labels; //lista o typie string - wczytujemy do niej daty przekonwertowane na string z weatherDailies - u góry jest
-    private List<Temperature> data; //lista o typie Temperature - /Model/Temperature.cs do której wczytujemy z weatherDailies obiekty Temp żeby później wyświetlać i wykonywać operacje na danych o temperaturze w ciągu dnia
-    private WeatherDataResult weatherDataResult; //definicja nowego obiektu do którego wczytujemy dane z bazy danych - zdefiniowana w /Model/WeatherDataResult.cs 
-    private List<WeatherDaily> weatherDailies = new List<WeatherDaily>(); //lista o typie WeatherDaily - /Model/WeatherDaily.cs do której przekazujemy wyłącznie część odpowiedzi z bazy danych żeby łatwiej było to ogarniać
-    
+    private string inputCity = "Kraków"; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury -> Potrzebne również do wyszukiwania danych w bazie
+    public List<string> inputTypeOfData = new List<string> { "Temperatura", "Zachmurzenie", "Prędkość Wiatru", "Ciśnienie Atmosferyczne", "Wilgotność powietrza", "Prawdopodobieństwo opadów" };
+
+    //listy, do których wczytane są dane z bazy danych - potrzebne do zrobienia wykresów, wyświetlania ich itp 
+    private string selectedTypeOfData = "Prędkość Wiatru";
+    private bool isHourly = true;
+    private List<string> datesFromDataBase;
+    private List<double> temperaturesFromDataBase;
+    private List<(double Min, double Max)> minMaxTempsFromDataBase;
+    private List<double> selectedDataFromDataBase;
+    private List<double> feelsLikeFromDataBase;
+
     //raczej nie potrzebne do frontu
     private Location location;
     private WeatherResponse weatherData; // definicja nowej klasy do której są wczytywane dane z api - klasa zdefiniowana w /Model/WeatherResponse.cs
-    //private LineChart<double> lineChart; //in development - miał być do wykresu liniowego jakiś tam komponent ale jeszcze nie zrobiłem
-    //private LineChartOptions chartOptions; //tak samo jak u góry
-    
-                                                                          //
-    
+                                         //private LineChart<double> lineChart; //in development - miał być do wykresu liniowego jakiś tam komponent ale jeszcze nie zrobiłem
+                                         //private LineChartOptions chartOptions; //tak samo jak u góry
+
+    //
+
 
     public static DateTime UnixTimeStampToDateTime(long unixTimeStamp) //funkcja do przekonwertowania czasu w formacie Unixowym na DateTime
     {
@@ -69,14 +81,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
     protected override async Task OnParametersSetAsync() //Wywołuje się za każdym razem, gdy parametry komponentu są ustawione //WAŻNE - ZROBIĆ BUTTON SEARCH, KTÓRY BĘDZIE PRZEŁADOWYWAŁ STRONĘ ZA KAŻDYM WYSZUKANIEM NOWEGO MIEJSCA
     {
         await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
-        weatherDataResult = await ReadData.GetLast10WeatherDailiesWithHourliesAsync(inputCity); //ściąganie danych z bazy danych do obiektu weatherDataResult
 
-        if (weatherDataResult != null)
-        {
-            weatherDailies = weatherDataResult.DailiesData; //Wyciągam jedynie dane dzienne ( są jeszcze godzinowe )
-            labels = weatherDailies.Select(d => d.DateDaily.ToString()).ToList(); //do listy labels dodaję wyłącznie daty w formacie string
-            data = weatherDailies.Select(d => d.Temp).ToList(); // do listy data dodaję obiekty Temp z temperaturami
-        }
     }
 
     private async Task<WeatherResponse> FetchWeatherDataAsync() //funkcja do pobierania danych z api, fetchowania ich do obiektów oraz updatowania i dodawania do bazy danych
@@ -123,7 +128,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
 
                     hour.DateHourly = dateTime.Date; //21-01-2024 00:00:00
                     hour.Time = dateTime.TimeOfDay; //04:12:42
-                    
+
                     Console.WriteLine(inputCity);
 
                     hour.LocationName = inputCity;
@@ -131,6 +136,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
                     await WeatherService.UpdateOrAddWeatherHourlyAsync(hour); //dodanie do bazy danych
                 }
             }
+            await LoadDataForChart(); //dopiero po dodaniu danych do bazy danych pobieramy je do wykresów. Nie jest to optymalne ale ogarnianie danych z samego zapytania API to RIP trochę
 
         }
         catch (Exception ex)
@@ -209,10 +215,19 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
                 return "Zesrało się :(";
             }
         } 
-        //dorobić funkcje, które wyciągają inne dane niż temperatura i data
-        //wyświetlić wszystkie dane jakie mogę żeby zobaczyć czy sa dobrze przekonwertowane
-        //sprawdzić czy w odpowiedzi z bazy danych jak pobieramy całą tabele daily są dla każdego dnia dane dla godzin
 
 
-    } //zrobić interfejs do pobierania danych z bazy danych
+    } 
+
+    //funkcja wczytująca dane z bazy danych 
+    private async Task LoadDataForChart()
+    {
+        var result = await ReadData.GetWeatherDataFromDataBase(selectedTypeOfData, inputCity, isHourly);
+        temperaturesFromDataBase = result.Temperatures;
+        minMaxTempsFromDataBase = result.MinMaxTemperatues;
+        selectedDataFromDataBase = result.SelectedData;
+        feelsLikeFromDataBase = result.FeelsLikeTemperature;
+        datesFromDataBase = result.Data;
+    }
+
 }
