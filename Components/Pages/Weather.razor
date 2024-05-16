@@ -115,7 +115,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
             Console.Write(adres);
 
             string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
-            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat_fromgeo}&lon={lon_fromgeo}&appid={apiKey}";
+            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat_fromgeo}&lon={lon_fromgeo}&appid={apiKey}&units=metric";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url); //pobieranie danych z API
 
             if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null) //Jeżeli nie jest puste to
