@@ -3,53 +3,244 @@
 @inject NavigationManager UriHelper
 @inject NavigationManager NavigationManager
 @using Instrukcja.Model
+@using Instrukcja.Services
+@using Microsoft.Data.Sqlite;
+@using Blazorise.Charts;
+@using Blazorise.Charts.Annotation;
+@using System;
+@using System.Net.Http;
+@using System.Threading.Tasks;
+@using Newtonsoft.Json;
+@using System.Globalization;
+@inject WeatherService WeatherService
+@inject ReadDataBaseService ReadData
 
 <h1>Weather Overview</h1>
 
-@if (weatherData != null)
+@if (weatherData != null) //jeżeli udało nam się dostać dane z api
 {
-    <p>Location: @weatherData.Timezone (@weatherData.Lat, @weatherData.Lon)</p>
-    <p>Current Temperature: @FormatTemperature(weatherData.Current.Temp)</p>
-    <a href="/weather/current">Go to current weather</a>
-    <a href="/weather/minutely">Go to minutely weather</a>
-    <a href="/weather/hourly">Go to hourly weather</a>
-    <a href="/weather/daily">Go to daily weather</a>
-
-
+    <p>@inputCity</p>
+    foreach(var day in datesFromDataBase)
+    {
+        <p> Dzień : @day</p>
+    }
+    foreach(var temp in temperaturesFromDataBase)
+    {
+        <p>Temperatura: @temp</p>
+    }
+    foreach (var minmax in minMaxTempsFromDataBase)
+    {
+        <p>Min: @minmax.Min Max: @minmax.Max</p>
+    }
+    foreach(var selected in selectedDataFromDataBase)
+    {
+        <p>@selectedTypeOfData: @selected</p>
+    }
+    foreach(var feels in feelsLikeFromDataBase)
+    {
+        <p>Temperatura feels: @feels</p>
+    }
 }
-else
+else // jeżeli nie to normalnie wyświetla się ten komunikat
 {
     <p>Loading weather data...</p>
 }
 
 @code {
-    private WeatherResponse weatherData;
+    //potrzebne do frontu
+    private string inputCity = "Katowice"; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury -> Potrzebne również do wyszukiwania danych w bazie
+    //czyli trzeba zrobić jakieś okienko, gdzie będzie się wpisywało miejsce
 
-    protected override async Task OnInitializedAsync()
+    //lista dodatkowych opcji pogody do wyświetlenia -> zrobić listę rozwijaną najlepiej do wyboru danych, które chce zobaczyć użytkownik
+    public List<string> inputTypeOfData = new List<string> { "Temperatura", "Zachmurzenie", "Prędkość Wiatru", "Ciśnienie Atmosferyczne", "Wilgotność powietrza", "Prawdopodobieństwo opadów" };
+   
+    //listy, do których wczytane są dane z bazy danych - potrzebne do zrobienia wykresów, wyświetlania ich itp 
+
+    // DLA POGODY DZIENNEJ zwracane jest 8 dat -> lista datesFromDataBase. 
+    // Do każdej z tych 8 dat są 4 rekordy temperatury w liście temperaturesFromDataBase: temperatura poranna, dzienna, wieczorna i nocna. 
+    // W liście minMaxTempsFromDataBase zwracana jest temperatura maksymalna i minimalna dla każdego dnia, można te temperatury wyświetlić nie na wykresie tylko gdzieś pod wykresem dla każdego dnia jako dodatkowe dane.
+    // W liście feelsLikeFromDataBase tak samo jak w liscie temperaturesFromDataBase dla każdego dnia są 4 temperatury ( tylko różnica jest taka że tam jest temperatura zmierzona przez termometr a tutaj temperatura odczuwalna)
+    // W liście selectedDataFromDataBase mamy wybrany typ danych dotyczący pogody ( wszystko jest doublem więc łatwo to ogarnąć)
+
+    //DLA POGODY GODZINOWEJ zwracane są 48 daty wraz z godziną -> lista datesFromDataBase
+    //Dla każdej daty jest jedna temperatura realna -> lista temperaturesFromDataBase
+    //Dla każdej daty jest jedna temperatura odczuwalna -> lista feelsLikeFromDataBase
+    //Dla każdej daty jest jeden wybrany typ danych -> lista selectedDataFromDataBase
+    //NIE OBCHODZI NAS LISTA minMaxTempsFromDataBase -> musiałem tam coś wpisać żeby funkcja działała 
+
+    private string selectedTypeOfData = "Prędkość Wiatru"; //wybrana dodatkowa wartość pogody ( jeżeli nic nie zostało wybrane to by defauly jest Prawdopodobieństwo opadów)
+    private bool isHourly = true; //bool reprezentujący czy mamy wyświetlać pogodę dzienną czy godzinową -> też trzeba będzie dać użytkownikowi wybór
+    //listy, do których wczytane są dane z bazy danych - potrzebne do zrobienia wykresów, wyświetlania ich itp
+    private List<string> datesFromDataBase;
+    private List<double> temperaturesFromDataBase;
+    private List<(double Min, double Max)> minMaxTempsFromDataBase;
+    private List<double> selectedDataFromDataBase;
+    private List<double> feelsLikeFromDataBase;
+
+
+    //raczej nie potrzebne do frontu
+    private Location location;
+    private WeatherResponse weatherData; // definicja nowej klasy do której są wczytywane dane z api - klasa zdefiniowana w /Model/WeatherResponse.cs
+
+    public static DateTime UnixTimeStampToDateTime(long unixTimeStamp) //funkcja do przekonwertowania czasu w formacie Unixowym na DateTime
     {
-        await FetchWeatherDataAsync();
+        // Ustawienie punktu początkowego (epoch)
+        System.DateTime dtDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
+        // Dodanie liczby sekund
+        dtDateTime = dtDateTime.AddSeconds(unixTimeStamp).ToLocalTime();
+        return dtDateTime;
     }
 
-    private async Task FetchWeatherDataAsync()
+    protected override async Task OnParametersSetAsync() //Wywołuje się za każdym razem, gdy parametry komponentu są ustawione //WAŻNE - ZROBIĆ BUTTON SEARCH, KTÓRY BĘDZIE PRZEŁADOWYWAŁ STRONĘ ZA KAŻDYM WYSZUKANIEM NOWEGO MIEJSCA
+    {
+        await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
+
+    }
+
+    private async Task<WeatherResponse> FetchWeatherDataAsync() //funkcja do pobierania danych z api, fetchowania ich do obiektów oraz updatowania i dodawania do bazy danych
     {
         try
         {
-            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98";
-            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+            location = await Geocode(inputCity);
+
+            var lat_fromgeo = location.Latitude;
+            var lon_fromgeo = location.Longitude;
+
+            Console.WriteLine(inputCity);
+            Console.WriteLine(lat_fromgeo);
+            Console.WriteLine(lon_fromgeo);
+
+            var adres = await ReverseGeocode(lat_fromgeo, lon_fromgeo);
+
+            Console.Write(adres);
+
+            string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
+            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat_fromgeo}&lon={lon_fromgeo}&appid={apiKey}";
+            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url); //pobieranie danych z API
+
+            if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null) //Jeżeli nie jest puste to
+            {
+                foreach (var day in weatherData.Daily) //Dla każdego pobranego dnia musimy uzupełnić pole DateDaily ( bo nie występuje w odpowiedzi API a jest potrzebne dla bazy danych)
+                {
+
+                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime(); //zamiana czasu unixowego na DateTime
+
+                    Console.WriteLine(weatherData.Lat);
+                    Console.WriteLine(weatherData.Lon);
+                    Console.WriteLine(inputCity);
+
+                    day.LocationName = inputCity;
+                    day.DateDaily = dateTime.Date; //dodanie wyłącznie daty do pola DateDaily czyli dodajemy wyłącznie 12-02-2024 (potem jest jeszcze czas ale zawsze będzie 00:00:00)
+
+                    await WeatherService.UpdateOrAddWeatherDailyAsync(day); //dodajemy do bazy dancyh
+                }
+
+                foreach (var hour in weatherData.Hourly) //to samo co u góry tylko dla każdej godziny z wyjątkiem takim że oprócz uzupełniania DateHourly uzupełniamy też Time czyli rozdzielamy datę na datę i godzinę
+                {
+                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(hour.Dt).DateTime.ToLocalTime();
+
+                    hour.DateHourly = dateTime.Date; //21-01-2024 00:00:00
+                    hour.Time = TimeOnly.FromTimeSpan(dateTime.TimeOfDay); //04:12:42
+
+                    Console.WriteLine(inputCity);
+
+                    hour.LocationName = inputCity;
+
+                    await WeatherService.UpdateOrAddWeatherHourlyAsync(hour); //dodanie do bazy danych
+                }
+            }
+            await LoadDataForChart(); //dopiero po dodaniu danych do bazy danych pobieramy je do wykresów. Nie jest to optymalne ale ogarnianie danych z samego zapytania API to RIP trochę
+
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Failed to load weather data: {ex.Message}");
         }
+        return weatherData; //zwracamy cały obiekt
     }
 
-    private string FormatTemperature(double kelvin)
+    private string FormatTemperature(double kelvin) // zamiana temperatury z kelvinów na celcjusze ale na razie tego nie wykorzystujemy
     {
         return (kelvin - 273.15).ToString("N2");
     }
-    public string uri1 = "/weather/current";
-    public string uri2 = "/weather/minutely";
-    public string uri3 = "/weather/hourly";
-    public string uri4 = "/weather/daily";
+
+    // metoda wysyłająca zapytanie do API openstreetmap zamieniająca stringa - adres np. Warszawa na lat i lon => POTRZEBNE W PRZYSZŁOŚCI DO WYSYŁANIA ZAPYTAŃ NA KONKRETNE LOKALIZACJE
+    private static async Task<Location> Geocode(string address)
+    {
+        string url = "https://nominatim.openstreetmap.org/search";
+        string query = $"?format=json&q={Uri.EscapeDataString(address)}";
+
+        using (HttpClient client = new HttpClient())
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", "C#.net Weather App Student Project (264237@student.pwr.edu.pl)");
+
+            HttpResponseMessage response = await client.GetAsync(url + query);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string jsonResult = await response.Content.ReadAsStringAsync();
+                var results = JsonConvert.DeserializeObject<NominatimResponseGeocode[]>(jsonResult);
+
+                if (results.Length > 0)
+                {
+                    return new Location { Latitude = double.Parse(results[0].lat, CultureInfo.InvariantCulture), Longitude = double.Parse(results[0].lon, CultureInfo.InvariantCulture) };
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            return null;
+        }
+    }
+
+    //metoda zamieniająca lat i lon na adres słownie np. Warszawa => POTRZEBNE WYŁĄCZNIE DO ZAPISU DO BAZY DANYCH
+    private static async Task<string> ReverseGeocode(double lat, double lon)
+    {
+        string url = "https://nominatim.openstreetmap.org/reverse";
+        string query = $"?lat={lat.ToString(CultureInfo.InvariantCulture)}&lon={lon.ToString(CultureInfo.InvariantCulture)}&format=json&zoom=10";
+
+        using (HttpClient client = new HttpClient())
+        {
+            client.DefaultRequestHeaders.Add("User-Agent", "C#.net Weather App Student Project (264237@student.pwr.edu.pl)");
+            HttpResponseMessage response = await client.GetAsync(url + query);
+
+            if (response.IsSuccessStatusCode)
+            {
+                string jsonResult = await response.Content.ReadAsStringAsync();
+                var result = JsonConvert.DeserializeObject<NominatimResponseReverseGeocode>(jsonResult);
+
+                if (result != null && result.Address != null && result.Address.City != null)
+                {
+                    return result.Address.City;
+                }
+                else
+                {
+                    return "No location found :(";
+                }
+            }
+            else
+            {
+                string errorMessage = await response.Content.ReadAsStringAsync();  // To pokaże błąd z API
+
+                Console.WriteLine(errorMessage);
+
+                return "Zesrało się :(";
+            }
+        } 
+
+
+    } 
+
+    //funkcja wczytująca dane z bazy danych 
+    private async Task LoadDataForChart()
+    {
+        var result = await ReadData.GetWeatherDataFromDataBase(selectedTypeOfData, inputCity, isHourly); //przekazanie parametrów które użytkownik musi wpisać
+        temperaturesFromDataBase = result.Temperatures;
+        minMaxTempsFromDataBase = result.MinMaxTemperatues;
+        selectedDataFromDataBase = result.SelectedData;
+        feelsLikeFromDataBase = result.FeelsLikeTemperature;
+        datesFromDataBase = result.Data;
+    }
 
 }

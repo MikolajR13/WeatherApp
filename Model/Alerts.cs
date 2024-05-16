@@ -1,6 +1,7 @@
 ﻿namespace Instrukcja.Model
 {
-    public class Alerts
+    //Ogólnie wszystkie klasy w Model mapują dane, które są w odpowiedzi z API +  dodatkowe zmienne pomocnicze lub zmienne nawigacyjne dla bazy danych
+    public class Alerts //w odpowiedzi API są alerty ale jeszcze tego nie przetwarzamy
     {
         public string Sender_name { get; set; }
         public string Event { get; set; }
