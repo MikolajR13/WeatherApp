@@ -1,17 +1,16 @@
 ﻿@page "/weather/daily"
 @inject HttpClient Http
 @rendermode InteractiveServer
-@using Instrukcja.Model
 @using Blazorise.Charts
 @using Blazorise.DataGrid
 @using Blazorise.Components
+@using Instrukcja.Model
 
 <h1>Daily Weather Forecast</h1>
 
 @if (weatherData != null && weatherData.Daily.Any()) //TU SIĘ DZIEJE MNIEJ WIĘCEJ TO SAMO CO W Weather.razor
 {
     <Card>
-        @* <CardHeader>Daily Weather Forecast</CardHeader *@
         <CardBody>
             <BarChart TItem="double" TLabel="string" @ref="barChart"/>
         </CardBody>
@@ -20,29 +19,95 @@
 }
 else
 {
-    <p>Loading daily weather data...</p>
+    <p>Loading daily weather data chart...</p>
 }
+
+<h1>Temperature Daily Data</h1>
 
 @if (dailyTempData != null && dailyTempData.Any())
 {
-    <DataGrid TItem="Temperature" Data="@dailyTempData">
-        <DataGridColumn Field="@nameof(Temperature.Date)" Caption="Date"/>
-        <DataGridColumn Field="@nameof(Temperature.Day)" Caption="Day"/>
-        <DataGridColumn Field="@nameof(Temperature.Min)" Caption="Min"/>
-        <DataGridColumn Field="@nameof(Temperature.Max)" Caption="Max" />
-        <DataGridColumn Field="@nameof(Temperature.Morn)" Caption="Morn" />
-        <DataGridColumn Field="@nameof(Temperature.Eve)" Caption="Eve"/>
-        <DataGridColumn Field="@nameof(Temperature.Night)" Caption="Night"/>
-    </DataGrid>
-
+    <Card>
+        <CardBody>
+            <DataGrid TItem="Temperature" Data="@dailyTempData">
+                <DataGridColumn Field="@nameof(Temperature.Date)" Caption="Date"/>
+                <DataGridColumn Field="@nameof(Temperature.Day)" Caption="Day Temperature [°C]">
+                    <DisplayTemplate>
+                        @FormatTemperature(context.Day)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn Field="@nameof(Temperature.Min)" Caption="Min. Temperature [°C]">
+                    <DisplayTemplate>
+                        @FormatTemperature(context.Min)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn Field="@nameof(Temperature.Max)" Caption="Max. Temperature [°C]">
+                    <DisplayTemplate>
+                        @FormatTemperature(context.Max)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn Field="@nameof(Temperature.Morn)" Caption="Morning Temperature [°C]">
+                    <DisplayTemplate>
+                        @FormatTemperature(context.Morn)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn Field="@nameof(Temperature.Eve)" Caption="Evening Temperature [°C]">
+                    <DisplayTemplate>
+                        @FormatTemperature(context.Eve)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn Field="@nameof(Temperature.Night)" Caption="Night Temperature [°C]">
+                    <DisplayTemplate>
+                        @FormatTemperature(context.Night)
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGrid>
+        </CardBody>
+    </Card>
+    <Divider />
 } else
 {
-    <p>Loading daily weather data...</p>
+    <p>Loading daily temperature data table...</p>
+}
+
+<h1>Complex Daily Weather Data</h1>
+@if (dailyWeatherData != null && dailyWeatherData.Any())
+{
+    <Card>
+        <CardBody>
+            <DataGrid TItem="WeatherDaily" Data="@dailyWeatherData">
+                <DataGridColumn Field="@nameof(WeatherDaily.Dt)" Caption="Date">
+                    <DisplayTemplate>
+                        @FormatDate(context.Dt)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn Field="@nameof(WeatherDaily.Pressure)" Caption="Pressure [hPa]" />
+                <DataGridColumn Field="@nameof(WeatherDaily.Humidity)" Caption="Humidity [%]" />
+                <DataGridColumn Field="@nameof(WeatherDaily.Dew_point)" Caption="Dew Point [°C]">
+                    <DisplayTemplate>
+                        @FormatTemperature(context.Dew_point)
+                    </DisplayTemplate>
+                </DataGridColumn>
+                <DataGridColumn Field="@nameof(WeatherDaily.Wind_speed)" Caption="Wind Speed [m/s]" />
+                <DataGridColumn Field="@nameof(WeatherDaily.Clouds)" Caption="Clouds [%]" />
+                <DataGridColumn Field="@nameof(WeatherDaily.Uvi)" Caption="UV Index" />
+                <DataGridColumn Field="@nameof(WeatherDaily.Pop)" Caption="Probability of Precipitation [%]">
+                    <DisplayTemplate>
+                        @FormatPop(context.Pop)
+                    </DisplayTemplate>
+                </DataGridColumn>
+            </DataGrid>
+        </CardBody>
+    </Card>
+}
+else
+{
+    <p>Loading daily weather complex data table...</p>
 }
 
 @code {
     public WeatherResponse weatherData;
     public List<Temperature> dailyTempData = new();
+    public List<WeatherDaily> dailyWeatherData = new();
 
     private BarChart<double> barChart = new();
     private List<double> actualTemperatures = new();
@@ -96,6 +161,7 @@ else
             feelsLikeTemperatures.Clear();
             dateLabels.Clear();
             dailyTempData.Clear();
+            dailyWeatherData.Clear();
 
             int i = 0;
 
@@ -106,17 +172,9 @@ else
                 feelsLikeTemperatures.Add(day.Feels_like.Day - 273.15); // Konwersja z Kelwinów na Celsjusze
                 dateLabels.Add(FormatDate(day.Dt)); // Dodawanie dat do jako etykiet wykresu
                 dailyTempData.Add(day.Temp); // Dodawanie temperatur do tabeli
+                dailyWeatherData.Add(day);
                 day.Temp.Date = dateLabels[i]; // Uzupelnianie informacji o datach przy temperaturach (potrzebne do tabeli)
                 i++;
-            }
-            foreach (var temp in dailyTempData) // Konwersja z Kelwinów na Celsjusze (tabela), konieczność zaokrąglania
-            {
-                temp.Day = Math.Round(temp.Day - 273.15, 2);
-                temp.Min = Math.Round(temp.Min - 273.15, 2);
-                temp.Max = Math.Round(temp.Max - 273.15, 2);
-                temp.Night = Math.Round(temp.Night - 273.15, 2);
-                temp.Eve = Math.Round(temp.Eve - 273.15, 2);
-                temp.Morn = Math.Round(temp.Morn - 273.15, 2);
             }
         }
         catch (Exception ex)
@@ -148,9 +206,19 @@ else
             };
     }
 
+    private string FormatTemperature(double kelvin)
+    {
+        return (kelvin - 273.15).ToString("N2");
+    }
+
     private string FormatDate(long unixDateTime)
     {
         DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(unixDateTime);
         return dateTimeOffset.LocalDateTime.ToString("g"); 
+    }
+
+    private string FormatPop(double pop)
+    {
+        return (pop * 100).ToString();
     }
 }

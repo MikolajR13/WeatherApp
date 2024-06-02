@@ -1,0 +1,135 @@
+﻿@page "/weather/minutely"
+@inject HttpClient Http
+@rendermode InteractiveServer
+@using Blazorise.Charts
+@using Blazorise.DataGrid
+@using Blazorise.Components
+@using Instrukcja.Model
+
+<h1>Minutely Weather Forecast</h1>
+
+@if (weatherData != null && weatherData.Minutely.Any())
+{
+    <Card>
+        <CardBody>
+            <BarChart TItem="double" TLabel="string" @ref="barChart" />
+        </CardBody>
+    </Card>
+    <Divider />
+}
+else
+{
+    <p>Loading minutely weather data chart...</p>
+}
+
+@if(minutelyData != null && minutelyData.Any()){
+    <DataGrid TItem="WeatherMinutely" Data="@minutelyData"
+              Responsive
+              ShowPager
+              ShowPageSizes
+              PagerPosition="DataGridPagerPosition.TopAndBottom"
+              PagerOptions="new(){ ButtonSize=Size.Small }">
+        <DataGridColumns>
+            <DataGridColumn Field="@nameof(WeatherMinutely.Dt)" Caption="Date">
+                <DisplayTemplate>
+                    @FormatDate(context.Dt)
+                </DisplayTemplate>
+            </DataGridColumn>
+            <DataGridColumn Field="@nameof(WeatherMinutely.Precipitation)" Caption="Precipitation [mm]" />
+        </DataGridColumns>
+        <PageButtonTemplate>
+            <Span TextColor="TextColor.Success">
+                @context.PageNumber
+            </Span>
+        </PageButtonTemplate>
+    </DataGrid>
+
+    //Debug
+    @* foreach (var minute in weatherData.Minutely)
+    {
+        <p>@FormatDate(minute.Dt): Precipitation: @minute.Precipitation</p>
+    } *@
+}
+else
+{
+    <p>Loading minutely weather data table...</p>
+}
+
+@code {
+    public WeatherResponse weatherData;
+    public List<WeatherMinutely> minutelyData = new();
+
+    private BarChart<double> barChart = new();
+    private List<double> precipitationData = new();
+    private List<string> dateLabels = new();
+
+    List<string> backgroundColors = new List<string> {
+        ChartColor.FromRgba(54, 162, 235, 0.2f)};
+    List<string> borderColors = new List<string> {
+        ChartColor.FromRgba(54, 162, 235, 1f)};
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMinutelyWeather();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadMinutelyWeather();
+            await HandleRedraw();
+        }
+    }
+
+    async Task HandleRedraw()
+    {
+        if (barChart != null)
+        {
+            await barChart.Clear();
+            await barChart.AddLabelsDatasetsAndUpdate(dateLabels, GetBarChartDataset());
+        }
+    }
+
+    private async Task LoadMinutelyWeather()
+    {
+        try
+        {
+            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=hourly,daily,current,alerts";
+            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+
+            precipitationData.Clear();
+            dateLabels.Clear();
+            minutelyData.Clear();
+
+            foreach (var minute in weatherData.Minutely)
+            {
+                precipitationData.Add(minute.Precipitation);
+                dateLabels.Add(FormatDate(minute.Dt));
+                minutelyData.Add(minute);
+            }
+            Console.WriteLine($"PrecipitationData: {precipitationData.Count()}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+
+    BarChartDataset<double> GetBarChartDataset()
+    {
+        return new BarChartDataset<double>
+            {
+                Label = "Precipitation [mm]",
+                Data = precipitationData,
+                BackgroundColor = backgroundColors,
+                BorderColor = borderColors
+            };
+    }
+
+    private string FormatDate(long unixDateTime)
+    {
+        DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(unixDateTime);
+        return dateTimeOffset.LocalDateTime.ToString("g");
+    }
+}

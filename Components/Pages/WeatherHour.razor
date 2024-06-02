@@ -1,27 +1,113 @@
 ﻿@page "/weather/hourly"
 @inject HttpClient Http
+@rendermode InteractiveServer
+@using Blazorise.Charts
+@using Blazorise.DataGrid
+@using Blazorise.Components
 @using Instrukcja.Model
 
 <h1>Hourly Weather Forecast</h1>
 
 @if (weatherData != null && weatherData.Hourly.Any()) //TU SIĘ DZIEJE MNIEJ WIĘCEJ TO SAMO CO W Weather.razor
 {
-    foreach (var hour in weatherData.Hourly)
+    <Card>
+        <CardBody>
+            <LineChart TItem="double" TLabel="string" @ref="lineChart" />
+        </CardBody>
+    </Card>
+    <Divider />
+    
+    //Debug
+    @* foreach (var hour in weatherData.Hourly)
     {
         <p>@FormatDate(hour.Dt): Temperature: @FormatTemperature(hour.Temp)°C, Feels Like: @FormatTemperature(hour.Feels_like)°C</p>
-    }
+    } *@
 }
 else
 {
-    <p>Loading hourly weather data...</p>
+    <p>Loading hourly weather data chart...</p>
+}
+
+@if(hourlyData != null && hourlyData.Any())
+{
+    <DataGrid TItem="WeatherHourly" Data="@hourlyData"
+              Responsive
+              ShowPager
+              ShowPageSizes
+              PagerPosition="DataGridPagerPosition.TopAndBottom"
+              PagerOptions="new(){ ButtonSize=Size.Small }">
+        <DataGridColumns>
+            <DataGridColumn Field="@nameof(WeatherHourly.Dt)" Caption="Date Hourly">
+                <DisplayTemplate>
+                    @FormatDate(context.Dt)
+                </DisplayTemplate>
+            </DataGridColumn>
+            <DataGridColumn Field="@nameof(WeatherHourly.Temp)" Caption="Temperature [°C]">
+                <DisplayTemplate>
+                    @FormatTemperature(context.Temp)
+                </DisplayTemplate>
+            </DataGridColumn>
+            <DataGridColumn Field="@nameof(WeatherHourly.Feels_like)" Caption="Feels Like [°C]">
+                <DisplayTemplate>
+                    @FormatTemperature(context.Feels_like)
+                </DisplayTemplate>
+            </DataGridColumn>
+            <DataGridColumn Field="@nameof(WeatherHourly.Pressure)" Caption="Pressure [hPa]" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Humidity)" Caption="Humidity [%]" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Dew_point)" Caption="Dew Point [°C]">
+                <DisplayTemplate>
+                    @FormatTemperature(context.Dew_point)
+                </DisplayTemplate>
+            </DataGridColumn>
+            <DataGridColumn Field="@nameof(WeatherHourly.Uvi)" Caption="UV Index" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Clouds)" Caption="Clouds [%]" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Visibility)" Caption="Visibility [m]" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Wind_speed)" Caption="Wind Speed [m/s]" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Wind_gust)" Caption="Wind Gust [m/s]" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Wind_deg)" Caption="Wind Direction [°]" />
+            <DataGridColumn Field="@nameof(WeatherHourly.Pop)" Caption="Probability of Precipitation [%]" />
+        </DataGridColumns>
+    </DataGrid>
+}
+else
+{
+    <p>Loading hourly weather data table...</p>
 }
 
 @code {
     public WeatherResponse weatherData;
+    public List<WeatherHourly> hourlyData = new();
+
+    private LineChart<double> lineChart = new();
+    private List<double> temperatureData = new();
+    private List<string> dateLabels = new();
+
+    List<string> backgroundColors = new List<string> {
+        ChartColor.FromRgba(54, 162, 235, 0.2f)};
+    List<string> borderColors = new List<string> {
+        ChartColor.FromRgba(54, 162, 235, 1f)};
 
     protected override async Task OnInitializedAsync()
     {
         await LoadHourlyWeather();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadHourlyWeather();
+            await HandleRedraw();
+        }
+    }
+
+    async Task HandleRedraw()
+    {
+        if (lineChart != null)
+        {
+            await lineChart.Clear();
+            await lineChart.AddLabelsDatasetsAndUpdate(dateLabels, GetLineChartDataset());
+        }
     }
 
     private async Task LoadHourlyWeather()
@@ -30,11 +116,34 @@ else
         {
             var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,daily,current,alerts";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+
+            temperatureData.Clear();
+            dateLabels.Clear();
+            hourlyData.Clear();
+
+            foreach (var hour in weatherData.Hourly)
+            {
+                temperatureData.Add(hour.Temp - 273.15);
+                dateLabels.Add(FormatDate(hour.Dt));
+                hourlyData.Add(hour);
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"An error occurred: {ex.Message}");
         }
+    }
+
+    LineChartDataset<double> GetLineChartDataset()
+    {
+        return new LineChartDataset<double>
+            {
+                Label = "Temperature [°C]",
+                Data = temperatureData,
+                BackgroundColor = backgroundColors,
+                BorderColor = borderColors,
+                Fill = true
+            };
     }
 
     private string FormatTemperature(double kelvin)
