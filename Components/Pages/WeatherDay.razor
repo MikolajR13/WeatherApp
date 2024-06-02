@@ -1,41 +1,123 @@
 ﻿@page "/weather/daily"
 @inject HttpClient Http
+@rendermode InteractiveServer
 @using Instrukcja.Model
+@using Blazorise.Charts
+@using Blazorise.DataGrid
+@using Blazorise.Components
 
-<h1>Hourly Weather Forecast</h1>
+<h1>Daily Weather Forecast</h1>
 
 @if (weatherData != null && weatherData.Daily.Any()) //TU SIĘ DZIEJE MNIEJ WIĘCEJ TO SAMO CO W Weather.razor
 {
-    foreach (var day in weatherData.Daily)
-    {
-        <p>@FormatDate(day.Dt): Temperature: Day: @FormatTemperature(day.Temp.Day)°C, 
-            Minimum : @FormatTemperature(day.Temp.Min)°C, 
-            Maximum :@FormatTemperature(day.Temp.Max)°C,
-            Night: @FormatTemperature(day.Temp.Night)°C, 
-            Evening: @FormatTemperature(day.Temp.Eve)°C, 
-            Morning: @FormatTemperature(day.Temp.Morn)°C
-        </p>
-    }
+    <Card>
+        <CardHeader>Daily Weather Forecast</CardHeader>
+        <CardBody>
+            <BarChart TItem="double" TLabel="string" @ref="barChart"/>
+        </CardBody>
+    </Card>
+    <Divider/>
 }
 else
 {
     <p>Loading daily weather data...</p>
 }
 
+@if (dailyTempData != null && dailyTempData.Any())
+{
+    <DataGrid TItem="Temperature" Data="@dailyTempData">
+        <DataGridColumn Field="@nameof(Temperature.Date)" Caption="Date"/>
+        <DataGridColumn Field="@nameof(Temperature.Day)" Caption="Day"/>
+        <DataGridColumn Field="@nameof(Temperature.Min)" Caption="Min"/>
+        <DataGridColumn Field="@nameof(Temperature.Max)" Caption="Max" />
+        <DataGridColumn Field="@nameof(Temperature.Morn)" Caption="Morn" />
+        <DataGridColumn Field="@nameof(Temperature.Eve)" Caption="Eve"/>
+        <DataGridColumn Field="@nameof(Temperature.Night)" Caption="Night"/>
+    </DataGrid>
+
+} else
+{
+    <p>Loading daily weather data...</p>
+}
+
 @code {
     public WeatherResponse weatherData;
+    public List<Temperature> dailyTempData = new();
+
+    private BarChart<double> barChart = new();
+    private List<double> actualTemperatures = new();
+    private List<double> feelsLikeTemperatures = new();
+    private List<string> dateLabels = new();
+
+    // Kolorki do wykresów, bez list nie chce poprawnie działać
+    List<string> backgroundColors = new List<string> {
+        ChartColor.FromRgba(255, 99, 132, 0.2f)};
+    List<string> backgroundColors2 = new List<string> {
+        ChartColor.FromRgba(54, 162, 235, 0.2f)};
+    List<string> borderColors = new List<string> {
+        ChartColor.FromRgba(255, 99, 132, 1f)};
+    List<string> borderColors2 = new List<string> {
+        ChartColor.FromRgba(54, 162, 235, 1f)};
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadDailyWeather();
+        await LoadDailyWeather(false);
+        Console.WriteLine("Data loaded successfully to the program");
     }
 
-    private async Task LoadDailyWeather()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDailyWeather(firstRender);
+            await HandleRedraw();
+        }
+    }
+
+    async Task HandleRedraw()
+    {
+        if (barChart != null)
+        {
+            await barChart.Clear();
+
+            await barChart.AddLabelsDatasetsAndUpdate(dateLabels, GetBarChartDataset(), GetBarChartDataset2());
+        }
+    }
+
+    private async Task LoadDailyWeather(bool firstRender)
     {
         try
         {
             var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,hourly,current,alerts";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
+
+            // Czyszczenie list, aby nie powstały nadmierne dane
+            actualTemperatures.Clear();
+            feelsLikeTemperatures.Clear();
+            dateLabels.Clear();
+            dailyTempData.Clear();
+
+            int i = 0;
+
+            // Ładowanie danych do list
+            foreach (var day in weatherData.Daily)
+            {
+                actualTemperatures.Add(day.Temp.Day - 273.15); // Konwersja z Kelwinów na Celsjusze
+                feelsLikeTemperatures.Add(day.Feels_like.Day - 273.15); // Konwersja z Kelwinów na Celsjusze
+                dateLabels.Add(FormatDate(day.Dt)); // Dodawanie dat do jako etykiet wykresu
+                dailyTempData.Add(day.Temp); // Dodawanie temperatur do tabeli
+                day.Temp.Date = dateLabels[i]; // Uzupelnianie informacji o datach przy temperaturach (potrzebne do tabeli)
+                i++;
+            }
+            foreach (var temp in dailyTempData) // Konwersja z Kelwinów na Celsjusze (tabela), konieczność zaokrąglania
+            {
+                temp.Day = Math.Round(temp.Day - 273.15, 2);
+                temp.Min = Math.Round(temp.Min - 273.15, 2);
+                temp.Max = Math.Round(temp.Max - 273.15, 2);
+                temp.Night = Math.Round(temp.Night - 273.15, 2);
+                temp.Eve = Math.Round(temp.Eve - 273.15, 2);
+                temp.Morn = Math.Round(temp.Morn - 273.15, 2);
+            }
         }
         catch (Exception ex)
         {
@@ -43,9 +125,27 @@ else
         }
     }
 
-    private string FormatTemperature(double kelvin)
+    // Zestaw danych temperatury faktycznej do wykresu
+    BarChartDataset<double> GetBarChartDataset()
     {
-        return (kelvin - 273.15).ToString("N2");
+        return new BarChartDataset<double>
+            {
+                Label = "Actual Temperature [°C]",
+                Data = actualTemperatures,
+                BackgroundColor = backgroundColors,
+                BorderColor = borderColors
+            };
+    }
+    // Zestaw danych temperatury odczuwalnej do wykresu
+    BarChartDataset<double> GetBarChartDataset2()
+    {
+        return new BarChartDataset<double>
+            {
+                Label = "Feels-Like Temperature [°C]",
+                Data = feelsLikeTemperatures,
+                BackgroundColor = backgroundColors2,
+                BorderColor = borderColors2
+            };
     }
 
     private string FormatDate(long unixDateTime)
