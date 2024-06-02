@@ -11,7 +11,7 @@
 @if (weatherData != null && weatherData.Daily.Any()) //TU SIĘ DZIEJE MNIEJ WIĘCEJ TO SAMO CO W Weather.razor
 {
     <Card>
-        <CardHeader>Daily Weather Forecast</CardHeader>
+        @* <CardHeader>Daily Weather Forecast</CardHeader *@
         <CardBody>
             <BarChart TItem="double" TLabel="string" @ref="barChart"/>
         </CardBody>
