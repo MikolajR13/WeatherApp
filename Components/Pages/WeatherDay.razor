@@ -1,10 +1,14 @@
 ﻿@page "/weather/daily"
 @inject HttpClient Http
 @rendermode InteractiveServer
+@inject WeatherService WeatherService
 @using Blazorise.Charts
 @using Blazorise.DataGrid
 @using Blazorise.Components
 @using Instrukcja.Model
+@using Instrukcja.Services
+
+
 
 <h1>Daily Weather Forecast</h1>
 
@@ -29,7 +33,6 @@ else
     <Card>
         <CardBody>
             <DataGrid TItem="Temperature" Data="@dailyTempData">
-                <DataGridColumn Field="@nameof(Temperature.Date)" Caption="Date"/>
                 <DataGridColumn Field="@nameof(Temperature.Day)" Caption="Day Temperature [°C]">
                     <DisplayTemplate>
                         @FormatTemperature(context.Day)
@@ -163,8 +166,6 @@ else
             dailyTempData.Clear();
             dailyWeatherData.Clear();
 
-            int i = 0;
-
             // Ładowanie danych do list
             foreach (var day in weatherData.Daily)
             {
@@ -173,8 +174,6 @@ else
                 dateLabels.Add(FormatDate(day.Dt)); // Dodawanie dat do jako etykiet wykresu
                 dailyTempData.Add(day.Temp); // Dodawanie temperatur do tabeli
                 dailyWeatherData.Add(day);
-                day.Temp.Date = dateLabels[i]; // Uzupelnianie informacji o datach przy temperaturach (potrzebne do tabeli)
-                i++;
             }
         }
         catch (Exception ex)

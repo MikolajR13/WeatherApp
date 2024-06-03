@@ -57,13 +57,13 @@ namespace Instrukcja.Data //Klasa do obsługi bazy danych
                 .ValueGeneratedOnAdd();  // Autoinkrementacja dla Id
 
             //relacja 1 do wielu między WeatherDaily a WeatherHourlyData
-            modelBuilder.Entity<WeatherDaily>() 
+            modelBuilder.Entity<WeatherDaily>()
                 .HasMany(wd => wd.WeatherHourlies) //jedna WeatherDaily ma wiele WeatherHourlies
                 .WithOne(wh => wh.WeatherDaily)
                 .HasForeignKey(wh => wh.WeatherDailyId) //Klucz obcy nadawany ręcznie 
                 .OnDelete(DeleteBehavior.Cascade); //co się dzieje przy usuwaniu
 
-            
+
             modelBuilder.Entity<WeatherDaily>()
                 .Property(wd => wd.LocationName).HasMaxLength(255);
 

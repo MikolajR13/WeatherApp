@@ -20,11 +20,11 @@
 @if (weatherData != null) //jeżeli udało nam się dostać dane z api
 {
     <p>@inputCity</p>
-    foreach(var day in datesFromDataBase)
+    foreach (var day in datesFromDataBase)
     {
         <p> Dzień : @day</p>
     }
-    foreach(var temp in temperaturesFromDataBase)
+    foreach (var temp in temperaturesFromDataBase)
     {
         <p>Temperatura: @temp</p>
     }
@@ -32,11 +32,11 @@
     {
         <p>Min: @minmax.Min Max: @minmax.Max</p>
     }
-    foreach(var selected in selectedDataFromDataBase)
+    foreach (var selected in selectedDataFromDataBase)
     {
         <p>@selectedTypeOfData: @selected</p>
     }
-    foreach(var feels in feelsLikeFromDataBase)
+    foreach (var feels in feelsLikeFromDataBase)
     {
         <p>Temperatura feels: @feels</p>
     }
@@ -48,16 +48,16 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
 
 @code {
     //potrzebne do frontu
-    private string inputCity = "Katowice"; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury -> Potrzebne również do wyszukiwania danych w bazie
-    //czyli trzeba zrobić jakieś okienko, gdzie będzie się wpisywało miejsce
+    private string inputCity = "Warszawa"; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury -> Potrzebne również do wyszukiwania danych w bazie
+                                           //czyli trzeba zrobić jakieś okienko, gdzie będzie się wpisywało miejsce
 
     //lista dodatkowych opcji pogody do wyświetlenia -> zrobić listę rozwijaną najlepiej do wyboru danych, które chce zobaczyć użytkownik
     public List<string> inputTypeOfData = new List<string> { "Temperatura", "Zachmurzenie", "Prędkość Wiatru", "Ciśnienie Atmosferyczne", "Wilgotność powietrza", "Prawdopodobieństwo opadów" };
-   
-    //listy, do których wczytane są dane z bazy danych - potrzebne do zrobienia wykresów, wyświetlania ich itp 
 
-    // DLA POGODY DZIENNEJ zwracane jest 8 dat -> lista datesFromDataBase. 
-    // Do każdej z tych 8 dat są 4 rekordy temperatury w liście temperaturesFromDataBase: temperatura poranna, dzienna, wieczorna i nocna. 
+    //listy, do których wczytane są dane z bazy danych - potrzebne do zrobienia wykresów, wyświetlania ich itp
+
+    // DLA POGODY DZIENNEJ zwracane jest 8 dat -> lista datesFromDataBase.
+    // Do każdej z tych 8 dat są 4 rekordy temperatury w liście temperaturesFromDataBase: temperatura poranna, dzienna, wieczorna i nocna.
     // W liście minMaxTempsFromDataBase zwracana jest temperatura maksymalna i minimalna dla każdego dnia, można te temperatury wyświetlić nie na wykresie tylko gdzieś pod wykresem dla każdego dnia jako dodatkowe dane.
     // W liście feelsLikeFromDataBase tak samo jak w liscie temperaturesFromDataBase dla każdego dnia są 4 temperatury ( tylko różnica jest taka że tam jest temperatura zmierzona przez termometr a tutaj temperatura odczuwalna)
     // W liście selectedDataFromDataBase mamy wybrany typ danych dotyczący pogody ( wszystko jest doublem więc łatwo to ogarnąć)
@@ -66,11 +66,11 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
     //Dla każdej daty jest jedna temperatura realna -> lista temperaturesFromDataBase
     //Dla każdej daty jest jedna temperatura odczuwalna -> lista feelsLikeFromDataBase
     //Dla każdej daty jest jeden wybrany typ danych -> lista selectedDataFromDataBase
-    //NIE OBCHODZI NAS LISTA minMaxTempsFromDataBase -> musiałem tam coś wpisać żeby funkcja działała 
+    //NIE OBCHODZI NAS LISTA minMaxTempsFromDataBase -> musiałem tam coś wpisać żeby funkcja działała
 
     private string selectedTypeOfData = "Prędkość Wiatru"; //wybrana dodatkowa wartość pogody ( jeżeli nic nie zostało wybrane to by defauly jest Prawdopodobieństwo opadów)
     private bool isHourly = true; //bool reprezentujący czy mamy wyświetlać pogodę dzienną czy godzinową -> też trzeba będzie dać użytkownikowi wybór
-    //listy, do których wczytane są dane z bazy danych - potrzebne do zrobienia wykresów, wyświetlania ich itp
+                                  //listy, do których wczytane są dane z bazy danych - potrzebne do zrobienia wykresów, wyświetlania ich itp
     private List<string> datesFromDataBase;
     private List<double> temperaturesFromDataBase;
     private List<(double Min, double Max)> minMaxTempsFromDataBase;
@@ -81,6 +81,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
     //raczej nie potrzebne do frontu
     private Location location;
     private WeatherResponse weatherData; // definicja nowej klasy do której są wczytywane dane z api - klasa zdefiniowana w /Model/WeatherResponse.cs
+
 
     public static DateTime UnixTimeStampToDateTime(long unixTimeStamp) //funkcja do przekonwertowania czasu w formacie Unixowym na DateTime
     {
@@ -227,12 +228,12 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
 
                 return "Zesrało się :(";
             }
-        } 
+        }
 
 
-    } 
+    }
 
-    //funkcja wczytująca dane z bazy danych 
+    //funkcja wczytująca dane z bazy danych
     private async Task LoadDataForChart()
     {
         var result = await ReadData.GetWeatherDataFromDataBase(selectedTypeOfData, inputCity, isHourly); //przekazanie parametrów które użytkownik musi wpisać
