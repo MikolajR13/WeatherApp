@@ -2,6 +2,7 @@
 @inject HttpClient Http
 @inject NavigationManager UriHelper
 @inject NavigationManager NavigationManager
+@rendermode InteractiveServer
 @using Instrukcja.Model
 @using Instrukcja.Services
 @using Microsoft.Data.Sqlite;
@@ -15,12 +16,40 @@
 @inject WeatherService WeatherService
 @inject ReadDataBaseService ReadData
 
-<h1>Weather Overview</h1>
+<h1>Welcome to our Weather App!</h1>
+
+<Fields>
+    <Field>
+        <FieldLabel>City</FieldLabel>
+        <FieldBody>
+            <TextEdit @bind-Text="@inputCity" 
+                      MaskType="MaskType.RegEx" 
+                      EditMask="^[a-zA-Z ]*$" 
+                      Placeholder="Input city name..."/> 
+            <br/>
+            <Button Color="Color.Secondary"
+                    Clicked="HandleClickSearchButton">
+                        Search
+            </Button> 
+            <Button Color="Color.Primary"
+                    Clicked="@ShowLoading"
+                    Loading="@isButtonLoading">
+                        <LoadingTemplate>
+                            This is a custom loading template
+                        </LoadingTemplate>
+                        <ChildContent>
+                            Click to load
+                        </ChildContent>
+            </Button>
+        </FieldBody>
+    </Field>
+            
+</Fields>
 
 @if (weatherData != null) //jeżeli udało nam się dostać dane z api
 {
     <p>@inputCity</p>
-    foreach (var day in datesFromDataBase)
+    @* foreach (var day in datesFromDataBase)
     {
         <p> Dzień : @day</p>
     }
@@ -39,17 +68,19 @@
     foreach (var feels in feelsLikeFromDataBase)
     {
         <p>Temperatura feels: @feels</p>
-    }
+    } *@
 }
 else // jeżeli nie to normalnie wyświetla się ten komunikat
 {
-    <p>Loading weather data...</p>
+    //<p>Loading weather data...</p>
 }
 
 @code {
     //potrzebne do frontu
-    private string inputCity = "Warszawa"; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury -> Potrzebne również do wyszukiwania danych w bazie
-                                           //czyli trzeba zrobić jakieś okienko, gdzie będzie się wpisywało miejsce
+    private string inputCity; //wpisywanie miasta dla, którego chcemy sprawdzić pogode - na razie z ręki ale trzeba zrobić, żeby się dało z klawiatury -> Potrzebne również do wyszukiwania danych w bazie
+                              //czyli trzeba zrobić jakieś okienko, gdzie będzie się wpisywało miejsce
+    private bool isButtonClicked = false;
+    private bool isButtonLoading = false;
 
     //lista dodatkowych opcji pogody do wyświetlenia -> zrobić listę rozwijaną najlepiej do wyboru danych, które chce zobaczyć użytkownik
     public List<string> inputTypeOfData = new List<string> { "Temperatura", "Zachmurzenie", "Prędkość Wiatru", "Ciśnienie Atmosferyczne", "Wilgotność powietrza", "Prawdopodobieństwo opadów" };
@@ -94,70 +125,83 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
 
     protected override async Task OnParametersSetAsync() //Wywołuje się za każdym razem, gdy parametry komponentu są ustawione //WAŻNE - ZROBIĆ BUTTON SEARCH, KTÓRY BĘDZIE PRZEŁADOWYWAŁ STRONĘ ZA KAŻDYM WYSZUKANIEM NOWEGO MIEJSCA
     {
-        await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
-
+        if(isButtonClicked == true) {
+            await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
+            isButtonClicked = false;
+            isButtonLoading = false;
+        } else
+        {
+            Console.WriteLine("Button is not clicked.");
+        }
     }
 
     private async Task<WeatherResponse> FetchWeatherDataAsync() //funkcja do pobierania danych z api, fetchowania ich do obiektów oraz updatowania i dodawania do bazy danych
     {
-        try
+        if(inputCity != null)
         {
-            location = await Geocode(inputCity);
-
-            var lat_fromgeo = location.Latitude;
-            var lon_fromgeo = location.Longitude;
-
-            Console.WriteLine(inputCity);
-            Console.WriteLine(lat_fromgeo);
-            Console.WriteLine(lon_fromgeo);
-
-            var adres = await ReverseGeocode(lat_fromgeo, lon_fromgeo);
-
-            Console.Write(adres);
-
-            string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
-            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat_fromgeo}&lon={lon_fromgeo}&appid={apiKey}&units=metric";
-            weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url); //pobieranie danych z API
-
-            if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null) //Jeżeli nie jest puste to
+            try
             {
-                foreach (var day in weatherData.Daily) //Dla każdego pobranego dnia musimy uzupełnić pole DateDaily ( bo nie występuje w odpowiedzi API a jest potrzebne dla bazy danych)
+                location = await Geocode(inputCity);
+
+                var lat_fromgeo = location.Latitude;
+                var lon_fromgeo = location.Longitude;
+
+                Console.WriteLine(inputCity);
+                Console.WriteLine(lat_fromgeo);
+                Console.WriteLine(lon_fromgeo);
+
+                var adres = await ReverseGeocode(lat_fromgeo, lon_fromgeo);
+
+                Console.Write(adres);
+
+                string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
+                string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat_fromgeo}&lon={lon_fromgeo}&appid={apiKey}&units=metric";
+                weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url); //pobieranie danych z API
+
+                if (weatherData != null && weatherData.Daily != null && weatherData.Hourly != null) //Jeżeli nie jest puste to
                 {
+                    foreach (var day in weatherData.Daily) //Dla każdego pobranego dnia musimy uzupełnić pole DateDaily ( bo nie występuje w odpowiedzi API a jest potrzebne dla bazy danych)
+                    {
 
-                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime(); //zamiana czasu unixowego na DateTime
+                        var dateTime = DateTimeOffset.FromUnixTimeSeconds(day.Dt).DateTime.ToLocalTime(); //zamiana czasu unixowego na DateTime
 
-                    Console.WriteLine(weatherData.Lat);
-                    Console.WriteLine(weatherData.Lon);
-                    Console.WriteLine(inputCity);
+                        Console.WriteLine(weatherData.Lat);
+                        Console.WriteLine(weatherData.Lon);
+                        Console.WriteLine(inputCity);
 
-                    day.LocationName = inputCity;
-                    day.DateDaily = dateTime.Date; //dodanie wyłącznie daty do pola DateDaily czyli dodajemy wyłącznie 12-02-2024 (potem jest jeszcze czas ale zawsze będzie 00:00:00)
+                        day.LocationName = inputCity;
+                        day.DateDaily = dateTime.Date; //dodanie wyłącznie daty do pola DateDaily czyli dodajemy wyłącznie 12-02-2024 (potem jest jeszcze czas ale zawsze będzie 00:00:00)
 
-                    await WeatherService.UpdateOrAddWeatherDailyAsync(day); //dodajemy do bazy dancyh
+                        await WeatherService.UpdateOrAddWeatherDailyAsync(day); //dodajemy do bazy dancyh
+                    }
+
+                    foreach (var hour in weatherData.Hourly) //to samo co u góry tylko dla każdej godziny z wyjątkiem takim że oprócz uzupełniania DateHourly uzupełniamy też Time czyli rozdzielamy datę na datę i godzinę
+                    {
+                        var dateTime = DateTimeOffset.FromUnixTimeSeconds(hour.Dt).DateTime.ToLocalTime();
+
+                        hour.DateHourly = dateTime.Date; //21-01-2024 00:00:00
+                        hour.Time = TimeOnly.FromTimeSpan(dateTime.TimeOfDay); //04:12:42
+
+                        Console.WriteLine(inputCity);
+
+                        hour.LocationName = inputCity;
+
+                        await WeatherService.UpdateOrAddWeatherHourlyAsync(hour); //dodanie do bazy danych
+                    }
                 }
+                await LoadDataForChart(); //dopiero po dodaniu danych do bazy danych pobieramy je do wykresów. Nie jest to optymalne ale ogarnianie danych z samego zapytania API to RIP trochę
 
-                foreach (var hour in weatherData.Hourly) //to samo co u góry tylko dla każdej godziny z wyjątkiem takim że oprócz uzupełniania DateHourly uzupełniamy też Time czyli rozdzielamy datę na datę i godzinę
-                {
-                    var dateTime = DateTimeOffset.FromUnixTimeSeconds(hour.Dt).DateTime.ToLocalTime();
-
-                    hour.DateHourly = dateTime.Date; //21-01-2024 00:00:00
-                    hour.Time = TimeOnly.FromTimeSpan(dateTime.TimeOfDay); //04:12:42
-
-                    Console.WriteLine(inputCity);
-
-                    hour.LocationName = inputCity;
-
-                    await WeatherService.UpdateOrAddWeatherHourlyAsync(hour); //dodanie do bazy danych
-                }
             }
-            await LoadDataForChart(); //dopiero po dodaniu danych do bazy danych pobieramy je do wykresów. Nie jest to optymalne ale ogarnianie danych z samego zapytania API to RIP trochę
-
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Failed to load weather data: {ex.Message}");
+            }
+            return weatherData; //zwracamy cały obiekt
         }
-        catch (Exception ex)
+        else
         {
-            Console.Error.WriteLine($"Failed to load weather data: {ex.Message}");
+            return null;
         }
-        return weatherData; //zwracamy cały obiekt
     }
 
     private string FormatTemperature(double kelvin) // zamiana temperatury z kelvinów na celcjusze ale na razie tego nie wykorzystujemy
@@ -244,4 +288,27 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
         datesFromDataBase = result.Data;
     }
 
+    private async Task HandleClickSearchButton()
+    {
+        Console.WriteLine("HandleClick called.");
+        if (string.IsNullOrWhiteSpace(inputCity))
+        {
+            Console.WriteLine("Proszę wprowadzić nazwę miasta przed pobraniem danych.");
+            return;
+        }
+        else
+        {
+            isButtonClicked = true;
+            isButtonLoading = true;
+            return;
+        }
+    }
+    private async Task ShowLoading()
+    {
+        isButtonLoading = true;
+
+        await Task.Delay(TimeSpan.FromSeconds(3));
+
+        isButtonLoading = false;
+    }
 }
