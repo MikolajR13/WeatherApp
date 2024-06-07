@@ -1,5 +1,7 @@
 ﻿@page "/weather/minutely"
 @inject HttpClient Http
+@inject NavigationManager UriHelper
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 @using Blazorise.Charts
 @using Blazorise.DataGrid
@@ -70,15 +72,40 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadMinutelyWeather();
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+        if (queryParams.ContainsKey("lat") && queryParams.ContainsKey("lon"))
+        {
+            var lat = queryParams["lat"];
+            var lon = queryParams["lon"];
+            await LoadMinutelyWeather(lat, lon);
+            Console.WriteLine("Data loaded successfully to the program");
+        }
+        else
+        {
+            Console.WriteLine("No geo parameters provided in url");
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await LoadMinutelyWeather();
-            await HandleRedraw();
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+            if (queryParams.ContainsKey("lat") && queryParams.ContainsKey("lon"))
+            {
+                var lat = queryParams["lat"];
+                var lon = queryParams["lon"];
+                await LoadMinutelyWeather(lat, lon);
+                await HandleRedraw();
+            }
+            else
+            {
+                Console.WriteLine("No geo parameters provided in url");
+            }
         }
     }
 
@@ -91,11 +118,13 @@ else
         }
     }
 
-    private async Task LoadMinutelyWeather()
+    private async Task LoadMinutelyWeather(string lat, string lon)
     {
         try
         {
-            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=hourly,daily,current,alerts";
+            string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
+            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={apiKey}&units=metric&exclude=hourly,daily,current,alerts";
+            //var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=hourly,daily,current,alerts";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
 
             precipitationData.Clear();

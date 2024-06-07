@@ -1,6 +1,7 @@
 ﻿@page "/weather/daily"
 @inject HttpClient Http
-@inject WeatherService WeatherService
+@inject NavigationManager UriHelper
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 @using Blazorise.Charts
 @using Blazorise.DataGrid
@@ -9,11 +10,12 @@
 @using Instrukcja.Services
 
 
-<h1>Daily Weather Forecast</h1>
-
 @if (weatherData != null && weatherData.Daily.Any()) //TU SIĘ DZIEJE MNIEJ WIĘCEJ TO SAMO CO W Weather.razor
 {
     <Card>
+        <CardHeader>
+            Daily Weather Forecast
+        </CardHeader>
         <CardBody>
             <BarChart TItem="double" TLabel="string" @ref="barChart"/>
         </CardBody>
@@ -25,42 +27,25 @@ else
     <p>Loading daily weather data chart...</p>
 }
 
-<h1>Temperature Daily Data</h1>
-
 @if (dailyTempData != null && dailyTempData.Any())
 {
     <Card>
+        <CardHeader>
+			Temperature Daily Data
+        </CardHeader>
         <CardBody>
-            <DataGrid TItem="Temperature" Data="@dailyTempData">
+            <DataGrid TItem="Temperature" Data="@dailyTempData" Striped>
                 <DataGridColumn Field="@nameof(Temperature.Day)" Caption="Day Temperature [°C]">
-                    <DisplayTemplate>
-                        @FormatTemperature(context.Day)
-                    </DisplayTemplate>
                 </DataGridColumn>
                 <DataGridColumn Field="@nameof(Temperature.Min)" Caption="Min. Temperature [°C]">
-                    <DisplayTemplate>
-                        @FormatTemperature(context.Min)
-                    </DisplayTemplate>
                 </DataGridColumn>
                 <DataGridColumn Field="@nameof(Temperature.Max)" Caption="Max. Temperature [°C]">
-                    <DisplayTemplate>
-                        @FormatTemperature(context.Max)
-                    </DisplayTemplate>
                 </DataGridColumn>
                 <DataGridColumn Field="@nameof(Temperature.Morn)" Caption="Morning Temperature [°C]">
-                    <DisplayTemplate>
-                        @FormatTemperature(context.Morn)
-                    </DisplayTemplate>
                 </DataGridColumn>
                 <DataGridColumn Field="@nameof(Temperature.Eve)" Caption="Evening Temperature [°C]">
-                    <DisplayTemplate>
-                        @FormatTemperature(context.Eve)
-                    </DisplayTemplate>
                 </DataGridColumn>
                 <DataGridColumn Field="@nameof(Temperature.Night)" Caption="Night Temperature [°C]">
-                    <DisplayTemplate>
-                        @FormatTemperature(context.Night)
-                    </DisplayTemplate>
                 </DataGridColumn>
             </DataGrid>
         </CardBody>
@@ -71,12 +56,14 @@ else
     <p>Loading daily temperature data table...</p>
 }
 
-<h1>Complex Daily Weather Data</h1>
 @if (dailyWeatherData != null && dailyWeatherData.Any())
 {
     <Card>
+        <CardHeader>
+			Complex Daily Weather Data
+        </CardHeader>
         <CardBody>
-            <DataGrid TItem="WeatherDaily" Data="@dailyWeatherData">
+            <DataGrid TItem="WeatherDaily" Data="@dailyWeatherData" Striped>
                 <DataGridColumn Field="@nameof(WeatherDaily.Dt)" Caption="Date">
                     <DisplayTemplate>
                         @FormatDate(context.Dt)
@@ -84,11 +71,7 @@ else
                 </DataGridColumn>
                 <DataGridColumn Field="@nameof(WeatherDaily.Pressure)" Caption="Pressure [hPa]" />
                 <DataGridColumn Field="@nameof(WeatherDaily.Humidity)" Caption="Humidity [%]" />
-                <DataGridColumn Field="@nameof(WeatherDaily.Dew_point)" Caption="Dew Point [°C]">
-                    <DisplayTemplate>
-                        @FormatTemperature(context.Dew_point)
-                    </DisplayTemplate>
-                </DataGridColumn>
+                <DataGridColumn Field="@nameof(WeatherDaily.Dew_point)" Caption="Dew Point [°C]" />
                 <DataGridColumn Field="@nameof(WeatherDaily.Wind_speed)" Caption="Wind Speed [m/s]" />
                 <DataGridColumn Field="@nameof(WeatherDaily.Clouds)" Caption="Clouds [%]" />
                 <DataGridColumn Field="@nameof(WeatherDaily.Uvi)" Caption="UV Index" />
@@ -128,16 +111,41 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadDailyWeather(false);
-        Console.WriteLine("Data loaded successfully to the program");
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+        if (queryParams.ContainsKey("lat") && queryParams.ContainsKey("lon"))
+        {
+            var lat = queryParams["lat"];
+            var lon = queryParams["lon"];
+            await LoadDailyWeather(lat, lon);
+            Console.WriteLine("Data loaded successfully to the program");
+        }
+        else
+        {
+            Console.WriteLine("No geo parameters provided in url");
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await LoadDailyWeather(firstRender);
-            await HandleRedraw();
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+            if (queryParams.ContainsKey("lat") && queryParams.ContainsKey("lon"))
+            {
+                var lat = queryParams["lat"];
+                var lon = queryParams["lon"];
+                await LoadDailyWeather(lat, lon);
+                await HandleRedraw();
+                StateHasChanged();
+            }
+            else
+            {
+                Console.WriteLine("No geo parameters provided in url");
+            }
         }
     }
 
@@ -151,11 +159,13 @@ else
         }
     }
 
-    private async Task LoadDailyWeather(bool firstRender)
+    private async Task LoadDailyWeather(string lat, string lon)
     {
         try
         {
-            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,hourly,current,alerts";
+            string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
+            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={apiKey}&units=metric&exclude=minutely,hourly,current,alerts";
+            //var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,hourly,current,alerts";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
 
             // Czyszczenie list, aby nie powstały nadmierne dane
@@ -168,8 +178,8 @@ else
             // Ładowanie danych do list
             foreach (var day in weatherData.Daily)
             {
-                actualTemperatures.Add(day.Temp.Day - 273.15); // Konwersja z Kelwinów na Celsjusze
-                feelsLikeTemperatures.Add(day.Feels_like.Day - 273.15); // Konwersja z Kelwinów na Celsjusze
+                actualTemperatures.Add(day.Temp.Day);
+                feelsLikeTemperatures.Add(day.Feels_like.Day);
                 dateLabels.Add(FormatDate(day.Dt)); // Dodawanie dat do jako etykiet wykresu
                 dailyTempData.Add(day.Temp); // Dodawanie temperatur do tabeli
                 dailyWeatherData.Add(day);
@@ -204,11 +214,6 @@ else
             };
     }
 
-    private string FormatTemperature(double kelvin)
-    {
-        return (kelvin - 273.15).ToString("N2");
-    }
-
     private string FormatDate(long unixDateTime)
     {
         DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(unixDateTime);
@@ -217,6 +222,6 @@ else
 
     private string FormatPop(double pop)
     {
-        return (pop * 100).ToString();
+        return Math.Round(pop * 100).ToString();
     }
 }

@@ -1,15 +1,17 @@
 ﻿@page "/weather/hourly"
 @inject HttpClient Http
+@inject NavigationManager UriHelper
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 @using Blazorise.Charts
 @using Blazorise.DataGrid
 @using Blazorise.Components
 @using Instrukcja.Model
 
-<h1>Hourly Weather Forecast</h1>
-
 @if (weatherData != null && weatherData.Hourly.Any()) //TU SIĘ DZIEJE MNIEJ WIĘCEJ TO SAMO CO W Weather.razor
 {
+    <h1>Hourly Weather Forecast</h1>
+    <br/>
     <Card>
         <CardBody>
             <LineChart TItem="double" TLabel="string" @ref="lineChart" />
@@ -34,6 +36,7 @@ else
               Responsive
               ShowPager
               ShowPageSizes
+              Striped
               PagerPosition="DataGridPagerPosition.TopAndBottom"
               PagerOptions="new(){ ButtonSize=Size.Small }">
         <DataGridColumns>
@@ -42,23 +45,11 @@ else
                     @FormatDate(context.Dt)
                 </DisplayTemplate>
             </DataGridColumn>
-            <DataGridColumn Field="@nameof(WeatherHourly.Temp)" Caption="Temperature [°C]">
-                <DisplayTemplate>
-                    @FormatTemperature(context.Temp)
-                </DisplayTemplate>
-            </DataGridColumn>
-            <DataGridColumn Field="@nameof(WeatherHourly.Feels_like)" Caption="Feels Like [°C]">
-                <DisplayTemplate>
-                    @FormatTemperature(context.Feels_like)
-                </DisplayTemplate>
-            </DataGridColumn>
+            <DataGridColumn Field="@nameof(WeatherHourly.Temp)" Caption="Temperature [°C]"/>
+            <DataGridColumn Field="@nameof(WeatherHourly.Feels_like)" Caption="Feels Like [°C]"/>
             <DataGridColumn Field="@nameof(WeatherHourly.Pressure)" Caption="Pressure [hPa]" />
             <DataGridColumn Field="@nameof(WeatherHourly.Humidity)" Caption="Humidity [%]" />
-            <DataGridColumn Field="@nameof(WeatherHourly.Dew_point)" Caption="Dew Point [°C]">
-                <DisplayTemplate>
-                    @FormatTemperature(context.Dew_point)
-                </DisplayTemplate>
-            </DataGridColumn>
+            <DataGridColumn Field="@nameof(WeatherHourly.Dew_point)" Caption="Dew Point [°C]" />
             <DataGridColumn Field="@nameof(WeatherHourly.Uvi)" Caption="UV Index" />
             <DataGridColumn Field="@nameof(WeatherHourly.Clouds)" Caption="Clouds [%]" />
             <DataGridColumn Field="@nameof(WeatherHourly.Visibility)" Caption="Visibility [m]" />
@@ -89,15 +80,40 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadHourlyWeather();
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+        if (queryParams.ContainsKey("lat") && queryParams.ContainsKey("lon"))
+        {
+            var lat = queryParams["lat"];
+            var lon = queryParams["lon"];
+            await LoadHourlyWeather(lat, lon);
+            Console.WriteLine("Data loaded successfully to the program");
+        }
+        else
+        {
+            Console.WriteLine("No geo parameters provided in url");
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await LoadHourlyWeather();
-            await HandleRedraw();
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+            if (queryParams.ContainsKey("lat") && queryParams.ContainsKey("lon"))
+            {
+                var lat = queryParams["lat"];
+                var lon = queryParams["lon"];
+                await LoadHourlyWeather(lat, lon);
+                await HandleRedraw();
+            }
+            else
+            {
+                Console.WriteLine("No geo parameters provided in url");
+            }
         }
     }
 
@@ -110,11 +126,13 @@ else
         }
     }
 
-    private async Task LoadHourlyWeather()
+    private async Task LoadHourlyWeather(string lat, string lon)
     {
         try
         {
-            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,daily,current,alerts";
+            string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
+            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={apiKey}&units=metric&exclude=minutely,daily,current,alerts";
+            //var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,daily,current,alerts";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
 
             temperatureData.Clear();
@@ -123,7 +141,7 @@ else
 
             foreach (var hour in weatherData.Hourly)
             {
-                temperatureData.Add(hour.Temp - 273.15);
+                temperatureData.Add(hour.Temp);
                 dateLabels.Add(FormatDate(hour.Dt));
                 hourlyData.Add(hour);
             }
@@ -144,11 +162,6 @@ else
                 BorderColor = borderColors,
                 Fill = true
             };
-    }
-
-    private string FormatTemperature(double kelvin)
-    {
-        return (kelvin - 273.15).ToString("N2");
     }
 
     private string FormatDate(long unixDateTime)

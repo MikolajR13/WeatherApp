@@ -1,5 +1,5 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
+    <div class="container-fluid  d-flex justify-content-center">
         <a class="navbar-brand" href="">Weather App</a>
     </div>
 </div>
@@ -14,12 +14,6 @@
             </NavLink>
         </div>
 
-        @* <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div> *@
-
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="weather">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather Overview
@@ -27,14 +21,10 @@
         </div>
 
         <div class="nav-item px-3">
-            @* <NavLink class="nav-link" href="ApiConnection">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> ApiConnection
-            </NavLink> *@
-
-            <NavLink class="nav-link" href="/weather/current">Current Weather</NavLink>
-            <NavLink class="nav-link" href="/weather/daily">Daily Forecast</NavLink>
-            <NavLink class="nav-link" href="/weather/hourly">Hourly Forecast</NavLink>
-            <NavLink class="nav-link" href="/weather/minutely">Minutely Precipitation Forecast</NavLink>
+            <NavLink class="nav-link" href="/weather/current" hidden="hidden">Current Weather</NavLink>
+            <NavLink class="nav-link" href="/weather/daily" hidden="hidden">Daily Forecast</NavLink>
+            <NavLink class="nav-link" href="/weather/hourly" hidden="hidden">Hourly Forecast</NavLink>
+            <NavLink class="nav-link" href="/weather/minutely" hidden="hidden">Minutely Precipitation Forecast</NavLink>
         </div>
     </nav>
 </div>

@@ -11,6 +11,7 @@
 @using Instrukcja.Services
 @using Microsoft.Data.Sqlite;
 @using Blazorise.Charts;
+@using Blazorise.Components;
 @using Blazorise.Charts.Annotation;
 @using System;
 @using System.Net.Http;
@@ -19,64 +20,167 @@
 @using System.Globalization;
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 
-<h1>Welcome to our Weather App!</h1>
+<Layout>
+    <h1 class="display-4 text-center">Welcome to our Weather App!</h1>
+
+    <div class="d-flex justify-content-center mt-4">
+        <div class="w-50">
+            <Field Horizontal Margin="Margin.IsAuto" ColumnSize="ColumnSize.Is10">
+                <FieldLabel ColumnSize="ColumnSize.Is2" TextSize="TextSize.Medium">City</FieldLabel>
+                <FieldBody ColumnSize="ColumnSize.Is10">
+                    <TextEdit @bind-Text="@inputCity"
+                              MaskType="MaskType.RegEx"
+                              EditMask="^[a-zA-ZółąężźńćśŁŻŚĆŹ ]*$"
+                              Placeholder="Input city name..." 
+                              TextAlignment="TextAlignment.Center"/>
+                </FieldBody>
+            </Field>
+            <br/>
+            <Field Horizontal Margin="Margin.IsAuto" ColumnSize="ColumnSize.Is3">
+                <Button Color="Color.Primary"
+                        Type="ButtonType.Submit"
+                        Clicked="HandleClickSearchButton"
+                        Loading="@isButtonLoading">
+                    <LoadingTemplate>
+                        Loading data...
+                    </LoadingTemplate>
+                    <ChildContent>
+                        Search
+                    </ChildContent>
+                </Button>
+            </Field>
+        </div>
+    </div>
+    <Divider />
+
+    @if (weatherData != null)
+    {
+        <div class="d-flex justify-content-center bg-light">
+            <Card Width="Width.Px(1000)" Margin="Margin.Is3">
+                <CardBody Margin="Margin.Is2">
+                    <div class="d-flex justify-content-center">
+                        <Column>
+                            <Row>
+                                <Column>
+						            <CardText>
+                                        <Row>
+									        <Column ColumnSize="ColumnSize.Is4" class="align-content-center">
+                                                <h1>@displayCity</h1>
+										        <p class="h2">@weatherData.Current.Temp °C</p>
+									        </Column>
+                                            <Column ColumnSize="ColumnSize.Is8" TextAlignment="TextAlignment.Center" class="align-content-center">
+										        <p class="lead">Description: @weatherData.Current.Weather[0].Description</p>
+                                                <Row>
+                                                    <Column>
+                                                        <p>Feels Like</p>
+                                                        <p>@weatherData.Current.Feels_like °C</p>
+                                                    </Column>
+                                                    <Column>
+                                                        <p>Pressure</p>
+                                                        <p>@weatherData.Current.Pressure hPa</p>
+                                                    </Column>
+                                                    <Column>
+                                                        <p>Wind Speed</p>
+                                                        <p>@weatherData.Current.Wind_speed m/s</p>
+                                                    </Column>
+                                                </Row>
+									        </Column>
+                                        </Row>
+						            </CardText>
+                                </Column>
+                                <Column ColumnSize="ColumnSize.Is2">
+                                    <div class="d-grid justify-content-center align-items-center h-100">
+                                        <CardImage Src="@($"http://openweathermap.org/img/wn/{weatherData.Current.Weather[0].Icon}@2x.png")" Alt="@weatherData.Current.Weather[0].Description" Width="Width.Px(120)"/>
+                                    </div>
+                                </Column>
+                            </Row>
+                            <Row Class="align-content-center">
+                                <Buttons>
+                                    <Button Color="Color.Secondary" To="@urls[0]">Current Weather</Button>
+                                    <Button Color="Color.Secondary" To="@urls[1]">Daily Weather</Button>
+                                    <Button Color="Color.Secondary" To="@urls[2]">Hourly Weather</Button>
+                                    <Button Color="Color.Secondary" To="@urls[3]">Minutely Weather</Button>
+                                </Buttons>
+						    </Row>
+						</Column>
+                    </div>
+                </CardBody>
+            </Card>
+        </div>
+
+        <Divider />
+
+    }
+    else if (isButtonLoading)
+    {
+        <Progress Indeterminate />
+    }
+</Layout>
+
+@* <h1>Welcome to our Weather App!</h1>
+<br/>
 
 <Fields>
-    <Field>
-        <FieldLabel>City</FieldLabel>
-        <FieldBody>
+    <Field Horizontal Margin="Margin.IsAuto">
+        <FieldLabel ColumnSize="ColumnSize.Is1" TextSize="TextSize.Medium">City</FieldLabel>
+        <FieldBody ColumnSize="ColumnSize.Is6">
             <TextEdit @bind-Text="@inputCity" 
                       MaskType="MaskType.RegEx" 
-                      EditMask="^[a-zA-Z ]*$" 
-                      Placeholder="Input city name..."/> 
-            <br/>
-            <Button Color="Color.Secondary"
-                    Type="ButtonType.Submit"
-                    Clicked="HandleClickSearchButton"
-                    Loading="@isButtonLoading">
-                        <LoadingTemplate>
-                            Loading data...
-                        </LoadingTemplate>
-                        <ChildContent>
-                            Search
-                        </ChildContent>
-            </Button> 
+                      EditMask="^[a-zA-ZółąężźńćśŁŻŚĆŹ]*$" 
+                      Placeholder="Input city name..."/>
         </FieldBody>
     </Field>
-            
+    <Field>
+        <Button Color="Color.Secondary"
+                Type="ButtonType.Submit"
+                Clicked="HandleClickSearchButton"
+                Loading="@isButtonLoading">
+                    <LoadingTemplate>
+                        Loading data...
+                    </LoadingTemplate>
+                    <ChildContent>
+                        Search
+                    </ChildContent>
+        </Button> 
+    </Field>
 </Fields>
+<Divider/>
 
-@if (weatherData != null && isButtonLoading) //jeżeli udało nam się dostać dane z api
+@if (weatherData != null) //jeżeli udało nam się dostać dane z api
 {
-    <h4>Miasto: @displayCity</h4>
-    <p>Temperature: @weatherData.Current.Temp</p>
-    <p>Weather: @weatherData.Current.Weather[0].Description</p>
+    <Card Background="Background.Light">
+        <CardBody>
+			<CardTitle><h1>City: @displayCity</h1></CardTitle>
+            <CardText>
+                <br/>
+				<p class="lead">Temperature: @weatherData.Current.Temp</p>
+                <p class="lead">Weather: @weatherData.Current.Weather[0].Description</p>
+            </CardText>
+        </CardBody>
+    </Card>
+    
+    <Divider/>
 
-    @* foreach (var day in datesFromDataBase)
-    {
-        <p> Dzień : @day</p>
-    }
-    foreach (var temp in temperaturesFromDataBase)
-    {
-        <p>Temperatura: @temp</p>
-    }
-    foreach (var minmax in minMaxTempsFromDataBase)
-    {
-        <p>Min: @minmax.Min Max: @minmax.Max</p>
-    }
-    foreach (var selected in selectedDataFromDataBase)
-    {
-        <p>@selectedTypeOfData: @selected</p>
-    }
-    foreach (var feels in feelsLikeFromDataBase)
-    {
-        <p>Temperatura feels: @feels</p>
-    } *@
+    <Breadcrumb Position="Position.Absolute.Bottom.Is0.Start.Is50.Translate.Middle">
+        <BreadcrumbItem>
+            <BreadcrumbLink To="@urls[0]">Current Weather</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+            <BreadcrumbLink To="@urls[1]">Daily Weather</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+            <BreadcrumbLink To="@urls[2]">Hourly Weather</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+            <BreadcrumbLink To="@urls[3]">Minutely Precipitation</BreadcrumbLink>
+        </BreadcrumbItem>
+    </Breadcrumb>
+
 }
-else // jeżeli nie to normalnie wyświetla się ten komunikat
+else if (isButtonLoading)// jeżeli nie to normalnie wyświetla się ten komunikat
 {
-    //<p>Loading weather data...</p>
-}
+    <Progress Indeterminate />
+} *@
 
 @code {
     //potrzebne do frontu
@@ -84,6 +188,7 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
                               //czyli trzeba zrobić jakieś okienko, gdzie będzie się wpisywało miejsce
     private string displayCity;
     private bool isButtonLoading = false;
+    public List<string> urls = new();
 
     //lista dodatkowych opcji pogody do wyświetlenia -> zrobić listę rozwijaną najlepiej do wyboru danych, które chce zobaczyć użytkownik
     public List<string> inputTypeOfData = new List<string> { "Temperatura", "Zachmurzenie", "Prędkość Wiatru", "Ciśnienie Atmosferyczne", "Wilgotność powietrza", "Prawdopodobieństwo opadów" };
@@ -135,11 +240,14 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
 
             if (queryParams.ContainsKey("inputCity"))
             {
+                isButtonLoading = true;
+                StateHasChanged();
                 inputCity = queryParams["inputCity"];
                 displayCity = inputCity;
 
                 await FetchWeatherDataAsync(); //pobieranie danych z API oraz dodawanie do bazy danych i w przyszłości updatowanie w bazie danych
                 Console.WriteLine("WeatherData has loaded to the function.");
+                isButtonLoading = false;
                 StateHasChanged();
             }
             else
@@ -178,10 +286,16 @@ else // jeżeli nie to normalnie wyświetla się ten komunikat
         {
             try
             {
+                isButtonLoading = true;
                 location = await Geocode(inputCity);
 
                 var lat_fromgeo = location.Latitude;
                 var lon_fromgeo = location.Longitude;
+
+                urls.Add($"weather/current?lat={lat_fromgeo}&lon={lon_fromgeo}");
+                urls.Add($"weather/daily?lat={lat_fromgeo}&lon={lon_fromgeo}");
+                urls.Add($"weather/hourly?lat={lat_fromgeo}&lon={lon_fromgeo}");
+                urls.Add($"weather/minutely?lat={lat_fromgeo}&lon={lon_fromgeo}");
 
                 Console.WriteLine(inputCity);
                 Console.WriteLine(lat_fromgeo);

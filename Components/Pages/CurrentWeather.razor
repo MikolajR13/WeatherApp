@@ -1,18 +1,54 @@
 ﻿@page "/weather/current"
 @inject HttpClient Http
+@inject NavigationManager UriHelper
+@inject NavigationManager NavigationManager
 @rendermode InteractiveServer
 @using Blazorise.Charts
 @using Blazorise.DataGrid
 @using Blazorise.Components
 @using Instrukcja.Model
-<h1>Current Weather Details</h1>
 
 @if (weatherData != null)
-{
-    <p>Temperature: @FormatTemperature(weatherData.Current.Temp)°C</p>
-    <p>Feels Like: @FormatTemperature(weatherData.Current.Feels_like)°C</p>
-    <p>Humidity: @weatherData.Current.Humidity%</p>
-    
+{   
+    <h1>Current Weather Details</h1>
+    <br/>
+    <Card>
+        <CardHeader>
+            Date: @FormatDate(weatherData.Current.Dt)
+        </CardHeader>
+        <CardBody>
+            <Table FullWidth="true" Striped="true" Bordered="true">
+                <TableHeader>
+                    <TableHeaderCell>Temperature [°C]</TableHeaderCell>
+                    <TableHeaderCell>Feels Like [°C]</TableHeaderCell>
+                    <TableHeaderCell>Humidity [%]</TableHeaderCell>
+                    <TableHeaderCell>Pressure [hPa]</TableHeaderCell>
+                    <TableHeaderCell>Dew Point [°C]</TableHeaderCell>
+                    <TableHeaderCell>UV Index</TableHeaderCell>
+                    <TableHeaderCell>Clouds [%]</TableHeaderCell>
+                    <TableHeaderCell>Visibility [m]</TableHeaderCell>
+                    <TableHeaderCell>Wind Speed [m/s]</TableHeaderCell>
+                    <TableHeaderCell>Wind Direction [°]</TableHeaderCell>
+                    <TableHeaderCell>Wind Gust [m/s]</TableHeaderCell>
+                </TableHeader>
+                <TableBody>
+                    <TableRow>
+                        <TableRowCell>@weatherData.Current.Temp</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Feels_like</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Humidity</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Pressure</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Dew_point</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Uvi</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Clouds</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Visibility</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Wind_speed</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Wind_deg</TableRowCell>
+                        <TableRowCell>@weatherData.Current.Wind_gust</TableRowCell>
+                    </TableRow>
+                </TableBody>
+            </Table>
+        </CardBody>
+    </Card>
 }
 else
 {
@@ -22,16 +58,39 @@ else
 @code {
     public WeatherResponse weatherData;
 
-    protected override async Task OnInitializedAsync()
+    // protected override async Task OnInitializedAsync()
+    // {
+    //     await LoadCurrentWeather();
+    // }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        await LoadCurrentWeather();
+        if (firstRender)
+        {
+            var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+            var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+            if (queryParams.ContainsKey("lat") && queryParams.ContainsKey("lon"))
+            {
+                var lat = queryParams["lat"];
+                var lon = queryParams["lon"];
+                await LoadCurrentWeather(lat, lon);
+                StateHasChanged();
+            }
+            else
+            {
+                Console.WriteLine("No geo parameters provided in url");
+            }
+        }
     }
 
-    private async Task LoadCurrentWeather()
+    private async Task LoadCurrentWeather(string lat, string lon)
     {
         try
         {
-            var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,daily,hourly,alerts";
+            string apiKey = "84c28f5c4cc0e8e22f5c365f20443e98";
+            string url = $"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&appid={apiKey}&units=metric&exclude=minutely,daily,hourly,alerts";
+            //var url = "https://api.openweathermap.org/data/3.0/onecall?lat=52.2297&lon=21.0122&appid=84c28f5c4cc0e8e22f5c365f20443e98&exclude=minutely,daily,hourly,alerts";
             weatherData = await Http.GetFromJsonAsync<WeatherResponse>(url);
         }
         catch (Exception ex)
@@ -39,9 +98,10 @@ else
             Console.WriteLine($"An error occurred: {ex.Message}");
         }
     }
-
-    private string FormatTemperature(double temperature)
+    
+    private string FormatDate(long unixDateTime)
     {
-        return temperature.ToString("N2");
+        DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(unixDateTime);
+        return dateTimeOffset.LocalDateTime.ToString("g");
     }
 }
